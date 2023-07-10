@@ -10,6 +10,7 @@ use serde::{Serialize, Deserialize};
 use tokio::sync::{mpsc, Notify};
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 
+mod discord;
 
 const BACKEND: &str = "http://localhost:8188";
 const WEBHOST: &str = "brage.info";
@@ -175,7 +176,7 @@ enum CommandResult {
     Success(Vec<JpegBlob>),
 }
 
-struct QueuedCommand {
+pub struct QueuedCommand {
     command: BackendCommand,
     sender: oneshot::Sender<CommandResult>,
 }
@@ -479,7 +480,7 @@ async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {
     Ok(urls.join(" "))
 }
 
-async fn irc_client(mut dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
+async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
     let config = Config::load(path::Path::new("irc.toml")).context("failed to load irc.toml")?;
     let mut client = Client::from_config(config).await.context("failed to connect to IRC")?;
     client.identify().context("failed to identify to IRC")?;
@@ -535,8 +536,11 @@ async fn main() -> Result<()> {
         err = dispatcher(dispatcher_rx) => {
             bail!("Dispatcher failed: {:?}", err);
         },
-        irc = irc_client(dispatcher_tx) => {
+        irc = irc_client(dispatcher_tx.clone()) => {
             bail!("IRC client failed: {:?}", irc);
+        },
+        discord = discord::client(dispatcher_tx.clone()) => {
+            bail!("Discord client failed: {:?}", discord);
         },
     }
 }
