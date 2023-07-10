@@ -1,0 +1,165 @@
+{
+  "4": {
+    "inputs": {
+      "ckpt_name": "__REFINER_CHECKPOINT__"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "5": {
+    "inputs": {
+      "width": __WIDTH__,
+      "height": __HEIGHT__,
+      "batch_size": __BATCH_SIZE__
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "23",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "10": {
+    "inputs": {
+      "ckpt_name": "__BASE_CHECKPOINT__"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "22": {
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": 187,
+      "steps": __STEPS_TOTAL__,
+      "cfg": 7.5,
+      "sampler_name": "ddim",
+      "scheduler": "ddim_uniform",
+      "start_at_step": 0,
+      "end_at_step": __FIRST_PASS_END_AT_STEP__,
+      "return_with_leftover_noise": "enable",
+      "model": [
+        "10",
+        0
+      ],
+      "positive": [
+        "75",
+        0
+      ],
+      "negative": [
+        "82",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSamplerAdvanced"
+  },
+  "23": {
+    "inputs": {
+      "add_noise": "disable",
+      "noise_seed": __SEED__,
+      "steps": __STEPS_TOTAL__,
+      "cfg": 7.5,
+      "sampler_name": "ddim",
+      "scheduler": "ddim_uniform",
+      "start_at_step": __FIRST_PASS_END_AT_STEP__,
+      "end_at_step": __STEPS_TOTAL__,
+      "return_with_leftover_noise": "disable",
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "120",
+        0
+      ],
+      "negative": [
+        "81",
+        0
+      ],
+      "latent_image": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "KSamplerAdvanced"
+  },
+  "75": {
+    "inputs": {
+      "width": 4096,
+      "height": 4096,
+      "crop_w": 0,
+      "crop_h": 0,
+      "target_width": 4096,
+      "target_height": 4096,
+      "text_g": "__PROMPT_A__",
+      "text_l": "__PROMPT_B__",
+      "clip": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncodeSDXL"
+  },
+  "81": {
+    "inputs": {
+      "ascore": 1,
+      "width": 4096,
+      "height": 4096,
+      "text": "__NEGATIVE_PROMPT__",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncodeSDXLRefiner"
+  },
+  "82": {
+    "inputs": {
+      "width": 4096,
+      "height": 4096,
+      "crop_w": 0,
+      "crop_h": 0,
+      "target_width": 4096,
+      "target_height": 4096,
+      "text_g": "__PROMPT_A__",
+      "text_l": "__PROMPT_B__",
+      "clip": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncodeSDXL"
+  },
+  "120": {
+    "inputs": {
+      "ascore": 9,
+      "width": 4096,
+      "height": 4096,
+      "text": "__PROMPT_A__",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncodeSDXLRefiner"
+  },
+  "122": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  }
+}

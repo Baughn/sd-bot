@@ -1,29 +1,32 @@
-use std::{path, sync::Arc, io::{Write, BufWriter, Cursor}, vec, net::TcpStream, fs::Permissions, os::unix::prelude::PermissionsExt, time::Duration, future::pending, pin::Pin};
+use std::{path, sync::Arc, io::{Write, BufWriter, Cursor}, vec, net::TcpStream, fs::Permissions, os::unix::prelude::PermissionsExt, time::Duration, future::pending, pin::Pin, collections::HashMap};
 
 use anyhow::{Result, bail, Context};
 use base64::prelude::*;
 use futures::{prelude::*, stream::FuturesUnordered, channel::oneshot};
 use irc::{client::prelude::*, error};
-use log::{info, warn, error, debug};
+use log::{info, warn, error, debug, trace};
+use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
 use tokio::sync::{mpsc, Notify};
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 
 
-const BACKEND: &str = "http://localhost:8000/txt2img";
+const BACKEND: &str = "http://localhost:8188";
 const WEBHOST: &str = "brage.info";
 const WEBHOST_DIR: &str = "GAN/ganbot2";
+const CLIENT_ID: &str = "ganbot2";
 
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BackendCommand {
     model_name: String,
-    prompt: String,
+    linguistic_prompt: String,
+    supporting_prompt: String,
     negative_prompt: String,
     use_pos_default: bool,
     use_neg_default: bool,
-    use_refiner: bool,
     guidance_scale: f32,
+    aesthetic_scale: f32,
     steps: u32,
     count: u32,
     seed: u32,
@@ -52,34 +55,163 @@ struct QueuedCommand {
 
 // Dispatches an image generation command to the backend via HTTP.
 async fn dispatch(command: &BackendCommand) -> Result<CommandResult> {
-    let client = reqwest::Client::new();
-    let response: BackendResponse = client.get(BACKEND)
-        .query(&command)
-        .send()
-        .await
-        .context("failed to send request")?
-        .json().await.context("failed to parse response")?;
-    
-    if let Some(detail) = response.detail {
-        bail!(detail);
+    // How many images can we generate at once?
+    // In general, we have a limit of 3 MPixels per request.
+    let max_batch_size: u32 = {
+        let max_pixels = (3 * 1024 * 1024) as f32;
+        let pixels_per_image = (command.width * command.height) as f32;
+        (max_pixels / pixels_per_image) as u32
+    };
+    let mut remaining = command.count;
+    let mut final_images = Vec::with_capacity(command.count as usize);
+    while remaining > 0 {
+        #[derive(Deserialize)]
+        struct ComfyUIResponse {
+            prompt_id: String,
+            #[allow(dead_code)]
+            number: u32,
+        }
+        let batch_size = std::cmp::min(remaining, max_batch_size);
+        remaining -= batch_size;
+        debug!("Generating {} images", batch_size);
+        let request = build_query(batch_size, command).context("failed to build query")?;
+        let response = request.send().await.context("failed to send request")?;
+        let text = response.text().await.context("failed to read response")?;
+        trace!("Response: {}", text);
+        let parsed = serde_json::from_str::<ComfyUIResponse>(&text).context("failed to parse response")?;
+        let prompt_id = parsed.prompt_id;
+        debug!("Got prompt ID {}", prompt_id);
+        // Now, we need to poll the history endpoint until it's done.
+        let mut filenames = None;
+        for _ in 0..2000 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            let client = reqwest::Client::new();
+            let history: serde_json::Value = client.get(format!("{}/history/{}", BACKEND, prompt_id))
+                .send()
+                .await
+                .context("failed to poll history")?
+                .json().await.context("failed to parse history")?;
+            // If the history is empty, we're not done yet.
+            if history.as_object().map(|o| o.is_empty()).unwrap_or(false) {
+                continue;
+            }
+            // Otherwise, we're done.
+            //
+            // Extract the filenames from the history; these are the images we want.
+            // They're at history[prompt_id].outputs.<number>.images[<index>].filename.
+            let outputs = history.get(prompt_id)
+                .and_then(|o| o.get("outputs")).context("history missing outputs")?;
+            let outputs = outputs.as_object().context("outputs not an object")?;
+            // This should just contain a single key, which is the number. We only care about the value.
+            let suboutput = outputs.iter().next().context("outputs empty")?.1;
+            let images = suboutput.get("images").context("suboutput missing images")?;
+            let images = images.as_array().context("images not an array")?;
+            filenames = images.iter().map(|i| {
+                let filename = i.get("filename")?;
+                let filename = filename.as_str()?;
+                Some(filename.to_owned())
+            }).collect::<Option<Vec<_>>>();
+            break;
+        }
+        // If we didn't get any filenames, we timed out.
+        let filenames = filenames.ok_or_else(|| anyhow::anyhow!("timed out waiting for images"))?;
+        // Now, we need to download the images.
+        let client = reqwest::Client::new();
+        for filename in filenames {
+            let image = client.get(format!("{}/view", BACKEND))
+                .query(&[("filename", filename)])
+                .send()
+                .await
+                .context("failed to download image")?
+                .bytes().await.context("failed to read image")?;
+            final_images.push(image.into());
+        }
     }
-    // Convert the base64-encoded images to raw bytes.
-    let images = response.images
-        .ok_or_else(|| anyhow::anyhow!("no images in response"))?
-        .into_iter()
-        .map(|data| {
-            let data = BASE64_STANDARD.decode(data.as_bytes()).context("failed to decode base64")?;
-            Ok(data)
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(CommandResult::Success(images))
+    Ok(CommandResult::Success(final_images))
+
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct BotConfig {
+    aliases: HashMap<String, String>,
+    models: HashMap<String, BotModelConfig>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BotModelConfig {
+    workflow: String,
+    baseline: String,
+    refiner: String,
+    default_positive: String,
+    default_negative: String,
+}
+
+// Builds a query string for the backend.
+// Since the backend is ComfyUI, this is a bit of a pain. We need to:
+// - Load the model config from models.json. This can fail, if the model doesn't exist.
+// - Load the workflow "JSON" from the model config. This actually has __STANDIN__ placeholders for the parameters.
+// - Replace the placeholders with the actual parameters.
+// - Confirm that the result is valid JSON.
+// - Take the text, and pass it to /prompt as POST data.
+fn build_query(batch_size: u32, command: &BackendCommand) -> Result<RequestBuilder> {
+    let config = std::fs::read_to_string("config.json").context("failed to read config.json")?;
+    let config: BotConfig = serde_json::from_str(&config).context("failed to parse config.json")?;
+    // First, check for aliases.
+    let model_name = config.aliases.get(&command.model_name).cloned().unwrap_or(command.model_name.clone());
+    // Then, load the model config.
+    let model_config = config.models.get(&model_name).ok_or_else(|| anyhow::anyhow!("no such model: {}", model_name))?;
+    // Load the workflow.
+    let workflow = std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
+    // Replace the placeholders.
+    let supporting_prompt = command.supporting_prompt.clone() + if command.use_pos_default { &model_config.default_positive } else { "" };
+    let negative_prompt = command.negative_prompt.clone() + if command.use_neg_default { &model_config.default_negative } else { "" };
+    let steps_cutover = (command.steps as f32 * 0.66) as u32;
+    let workflow = workflow
+        .replace("__REFINER_CHECKPOINT__", &model_config.refiner)
+        .replace("__BASE_CHECKPOINT__", &model_config.baseline)
+        .replace("__NEGATIVE_PROMPT__", &negative_prompt)
+        .replace("__PROMPT_A__", &command.linguistic_prompt)
+        .replace("__PROMPT_B__", &supporting_prompt)
+        .replace("__STEPS_TOTAL__", &command.steps.to_string())
+        .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
+        .replace("__WIDTH__", &command.width.to_string())
+        .replace("__HEIGHT__", &command.height.to_string())
+        .replace("__SEED__", &command.seed.to_string())
+        .replace("__BASE_CFG__", &command.guidance_scale.to_string())
+        .replace("__REFINER_CFG__", &command.guidance_scale.to_string())
+        .replace("__BATCH_SIZE__", &batch_size.to_string())
+        .replace("__POSITIVE_A_SCORE__", &command.aesthetic_scale.to_string())
+        .replace("__NEGATIVE_A_SCORE__", "1.0");
+    // Confirm that the result is valid JSON.
+    let workflow: serde_json::Value = serde_json::from_str(&workflow).context("failed to parse augmented workflow")?;
+    #[derive(Debug, Serialize)]
+    struct Request {
+        prompt: serde_json::Value,
+        client_id: String,
+    }
+    let request = Request {
+        prompt: workflow,
+        client_id: CLIENT_ID.to_string(),
+    };
+    // Take the text, and pass it to /prompt as POST data.
+    let request = serde_json::to_string(&request).context("failed to serialize request")?;
+    let request = reqwest::Client::new().post(format!("{}/prompt", BACKEND))
+        .body(request);
+    Ok(request)
+}
+
+
 async fn dispatch_and_retry(command: QueuedCommand) -> Result<()> {
-    let retry_strategy = ExponentialBackoff::from_millis(500).take(5);
+    let retry_strategy = ExponentialBackoff::from_millis(500).max_delay(Duration::from_secs(5)).take(5);
     let result = Retry::spawn(retry_strategy, || async {
-        dispatch(&command.command).await
+        trace!("Dispatching command: {:?}", command.command);
+        let result = dispatch(&command.command).await;
+        if let Err(ref e) = result {
+            warn!("Failed to dispatch command: {:?}", e);
+        }
+        result
     }).await;
+    trace!("Dispatched command: {:?}", command.command);
     let result = match result {
         Ok(result) => result,
         Err(e) => {
@@ -136,6 +268,7 @@ async fn dispatcher(mut commands: mpsc::Receiver<QueuedCommand>) -> Result<()> {
                 let command = commands.recv().await.context("Command channel closed")?;
                 queue.push(command);
                 state = State::Ready;
+                debug!("Transitioning to Ready state");
             },
             State::Busy => {
                 // Wait for either completion of the current command or a new command.
@@ -174,11 +307,12 @@ async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut 
     let command = QueuedCommand {
         command: BackendCommand {
             model_name: "default".to_owned(),
-            prompt: prompt.to_owned(),
+            linguistic_prompt: prompt.to_owned(),
+            supporting_prompt: prompt.to_owned(),
+            aesthetic_scale: 8.0,
             negative_prompt: "blurry, text".to_owned(),
             use_pos_default: true,
             use_neg_default: true,
-            use_refiner: true,
             guidance_scale: 8.0,
             steps: 50,
             count: 2,

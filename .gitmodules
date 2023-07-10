@@ -1,0 +1,3 @@
+[submodule "Sytan-SDXL-ComfyUI"]
+	path = Sytan-SDXL-ComfyUI
+	url = https://github.com/SytanSD/Sytan-SDXL-ComfyUI.git
