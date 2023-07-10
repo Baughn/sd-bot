@@ -19,20 +19,147 @@ const CLIENT_ID: &str = "ganbot2";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BackendCommand {
-    model_name: String,
-    linguistic_prompt: String,
-    supporting_prompt: String,
-    negative_prompt: String,
-    use_pos_default: bool,
-    use_neg_default: bool,
-    guidance_scale: f32,
-    aesthetic_scale: f32,
-    steps: u32,
-    count: u32,
-    seed: u32,
-    width: u32,
+    model_name: String, // --model, -m
+    linguistic_prompt: String, // Default.
+    supporting_prompt: String, // --style -s
+    negative_prompt: String, // --no
+    use_pos_default: bool, // --np
+    use_neg_default: bool, // --nn
+    guidance_scale: f32, // --scale
+    aesthetic_scale: f32, // --aesthetic, -a
+    steps: u32, // --steps
+    count: u32, // --count, -c
+    seed: u32, // --seed
+    // Width and height cannot be set directly; they are derived from --ar.
+    width: u32, 
     height: u32,
 }
+
+impl BackendCommand {
+    fn from_dream(dream: &str) -> Result<Self> {
+        // This parses the !dream IRC/Discord command.
+        // It's basically a command line, but with special handling for --style and --no.
+        // TODO: Load some of this from config.json.
+        let mut model_name = "default";
+        let mut linguistic_prompt = vec![];
+        let mut supporting_prompt = vec![];
+        let mut negative_prompt = vec![];
+        let mut use_pos_default = true;
+        let mut use_neg_default = true;
+        let mut guidance_scale = 8.0;
+        let mut aesthetic_scale = 8.0;
+        let mut steps = 50;
+        let mut count = 2;
+        // Default seed is the POSIX timestamp.
+        let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as u32;
+        let mut width = 1280;
+        let mut height = 816;
+        
+        let mut last_option = None;
+        let mut last_value = None;
+        let mut reading_supporting_prompt = false;
+        let mut reading_negative_prompt = false;
+
+        for token in dream.split_whitespace() {
+            if let Some(_) = last_option {
+                // Did we previously see an option (that was missing its argument)?
+                last_value = Some(token);
+            } else if token == "--no" {
+                reading_negative_prompt = true;
+            } else if token == "--style" {
+                reading_supporting_prompt = true;
+            } else if token.starts_with("--") {
+                // It's an option, but does it include the value?
+                let mut parts = token[2..].splitn(2, '=');
+                last_option = Some(parts.next().unwrap());
+                last_value = parts.next();
+            } else if token.starts_with("-") {
+                // It's a short-form option, which never includes the value.
+                last_option = Some(token.strip_prefix("-").unwrap());
+            } else {
+                // It's part of one of the prompts.
+                if reading_supporting_prompt {
+                    supporting_prompt.push(token);
+                } else if reading_negative_prompt {
+                    negative_prompt.push(token);
+                } else {
+                    linguistic_prompt.push(token);
+                }
+            }
+            // Did we just finish reading an option?
+            if let Some(value) = last_value {
+                match last_option.unwrap() {
+                    "model" | "m" => model_name = value,
+                    "style" | "s" => supporting_prompt.push(value),
+                    "np" => use_pos_default = false,
+                    "nn" => use_neg_default = false,
+                    "scale" => guidance_scale = value.parse().context("Scale must be a number")?,
+                    "aesthetic" | "a" => aesthetic_scale = value.parse().context("Aesthetic scale must be a number")?,
+                    "steps" => steps = value.parse().context("Steps must be a number")?,
+                    "count" | "c" => count = value.parse().context("Count must be a number")?,
+                    "seed" => seed = value.parse().context("Seed must be a number")?,
+                    "ar" => {
+                        let mut parts = value.splitn(2, ':');
+                        let ar_x = parts.next().context("AR must be in the form W:H")?;
+                        let ar_y = parts.next().context("AR must be in the form W:H")?;
+                        let ar_x: f32 = ar_x.parse().context("AR must be in the form W:H")?;
+                        let ar_y: f32 = ar_y.parse().context("AR must be in the form W:H")?;
+                        // Width and height are derived from AR.
+                        // The total number of pixels is fixed at 1 megapixel.
+                        let ar: f32 = ar_x / ar_y;
+                        width = (1024.0 * ar.sqrt()).round() as u32;
+                        height = (1024.0 / ar.sqrt()).round() as u32;
+                        // Shrink dimensions so that they're multiples of 8.
+                        width -= width % 8;
+                        height -= height % 8;
+                    },
+                    x => bail!("Unknown option: {}", x),
+                }
+                last_option = None;
+                last_value = None;
+            }
+        }
+
+        // Do some final validation.
+        if linguistic_prompt.is_empty() {
+            bail!("Linguistic prompt is required");
+        }
+        if supporting_prompt.is_empty() {
+            bail!("Style prompt is required; use --style with \"comic book, artistic\" or something similar. Style prompts should describe the genre, not the specific image.");
+        }
+        if guidance_scale < 1.0 || guidance_scale > 30.0 {
+            bail!("Scale must be between 1 and 30");
+        }
+        if aesthetic_scale < 1.0 || aesthetic_scale > 30.0 {
+            bail!("Aesthetic scale must be between 1 and 30");
+        }
+        if steps < 1 || count < 1 {
+            bail!("We're done! Wasn't that fast?")
+        }
+        if count > 16 {
+            bail!("Count must be 16 or less");
+        }
+
+        let command = BackendCommand {
+            model_name: model_name.to_string(),
+            linguistic_prompt: linguistic_prompt.join(" "),
+            supporting_prompt: supporting_prompt.join(" "),
+            negative_prompt: negative_prompt.join(" "),
+            use_pos_default,
+            use_neg_default,
+            guidance_scale,
+            aesthetic_scale,
+            steps,
+            count,
+            seed,
+            width,
+            height,
+        };
+        info!("Generated command configuration: {:?}", command);
+        Ok(command)
+    }
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BackendResponse {
@@ -303,23 +430,8 @@ async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut 
     let (sender, receiver) = oneshot::channel();
     // Parse the command.
     let prompt = msg.trim_start_matches("!dream").trim();
-
     let command = QueuedCommand {
-        command: BackendCommand {
-            model_name: "default".to_owned(),
-            linguistic_prompt: prompt.to_owned(),
-            supporting_prompt: prompt.to_owned(),
-            aesthetic_scale: 8.0,
-            negative_prompt: "blurry, text".to_owned(),
-            use_pos_default: true,
-            use_neg_default: true,
-            guidance_scale: 8.0,
-            steps: 50,
-            count: 2,
-            seed: 0,
-            width: 1280,
-            height: 720,
-        },
+        command: BackendCommand::from_dream(prompt)?,
         sender,
     };
     dispatcher.send(command).await.context("failed to send command")?;

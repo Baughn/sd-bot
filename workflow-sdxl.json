@@ -35,7 +35,7 @@
   "22": {
     "inputs": {
       "add_noise": "enable",
-      "noise_seed": 187,
+      "noise_seed": __SEED__,
       "steps": __STEPS_TOTAL__,
       "cfg": 7.5,
       "sampler_name": "ddim",
