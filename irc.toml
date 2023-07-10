@@ -1,0 +1,6 @@
+nickname = "GANBot"
+server = "irc.rizon.net"
+port = 6697
+use_tls = true
+channels = ["#nanobot", "#nanoha", "#dess"]
+

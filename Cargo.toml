@@ -1,0 +1,23 @@
+[package]
+name = "sd-bot-2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1.0.71", features = ["backtrace"] }
+base64 = "0.21.2"
+env_logger = "0.10.0"
+futures = "0.3.28"
+image = { version = "0.24.6", default-features = false, features = ["jpeg_rayon", "jpeg", "png"] }
+irc = { version = "0.15.0", features = ["tls-rust", "ctcp", "toml_config"], default-features = false }
+log = "0.4.19"
+reqwest = { version = "0.11.18", default-features = false, features = ["rustls-tls", "serde_json", "json"] }
+serde = { version = "1.0.170", features = ["derive"] }
+serde_json = "1.0.100"
+sqlite = { version = "0.31.0", features = ["bundled"] }
+tempfile = "3.6.0"
+tokio = { version = "1.29.1", features = ["full"] }
+tokio-retry = "0.3.0"
+uuid = { version = "1.4.0", features = ["v4"] }
