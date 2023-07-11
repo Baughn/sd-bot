@@ -197,6 +197,7 @@ async fn dispatch(command: &BackendCommand) -> Result<CommandResult> {
     };
     let mut remaining = command.count;
     let mut final_images = Vec::with_capacity(command.count as usize);
+    let mut seed_offset = 0;
     while remaining > 0 {
         #[derive(Deserialize)]
         struct ComfyUIResponse {
@@ -207,7 +208,13 @@ async fn dispatch(command: &BackendCommand) -> Result<CommandResult> {
         let batch_size = std::cmp::min(remaining, max_batch_size);
         remaining -= batch_size;
         debug!("Generating {} images", batch_size);
-        let request = build_query(batch_size, command).context("failed to build query")?;
+        let request = build_query(
+            batch_size, 
+            BackendCommand {
+                seed: command.seed + seed_offset,
+                ..command.clone()
+            }).context("failed to build query")?;
+        seed_offset += 1;
         let response = request.send().await.context("failed to send request")?;
         let text = response.text().await.context("failed to read response")?;
         trace!("Response: {}", text);
@@ -286,7 +293,7 @@ struct BotModelConfig {
 // - Replace the placeholders with the actual parameters.
 // - Confirm that the result is valid JSON.
 // - Take the text, and pass it to /prompt as POST data.
-fn build_query(batch_size: u32, command: &BackendCommand) -> Result<RequestBuilder> {
+fn build_query(batch_size: u32, command: BackendCommand) -> Result<RequestBuilder> {
     let config = std::fs::read_to_string("config.json").context("failed to read config.json")?;
     let config: BotConfig = serde_json::from_str(&config).context("failed to parse config.json")?;
     // First, check for aliases.
