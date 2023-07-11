@@ -126,7 +126,7 @@ impl BackendCommand {
             bail!("Linguistic prompt is required");
         }
         if supporting_prompt.is_empty() {
-            bail!("Style prompt is required; use --style with \"comic book, artistic\" or something similar. Style prompts should describe the genre, not the specific image.");
+            bail!("Style prompt is required; use --style with `comic book, artistic` or something similar, e.g. `cat --style anime`. Style prompts should describe the genre, not the specific image.");
         }
         if guidance_scale < 1.0 || guidance_scale > 30.0 {
             bail!("Scale must be between 1 and 30");
@@ -294,12 +294,28 @@ fn build_query(batch_size: u32, command: &BackendCommand) -> Result<RequestBuild
     let supporting_prompt = command.supporting_prompt.clone() + if command.use_pos_default { &model_config.default_positive } else { "" };
     let negative_prompt = command.negative_prompt.clone() + if command.use_neg_default { &model_config.default_negative } else { "" };
     let steps_cutover = (command.steps as f32 * 0.66) as u32;
+
+    fn json_encode_string(s: &str) -> String {
+        let mut result = String::new();
+        for c in s.chars() {
+            match c {
+                '"' => result.push_str("\\\""),
+                '\\' => result.push_str("\\\\"),
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                '\t' => result.push_str("\\t"),
+                _ => result.push(c),
+            }
+        }
+        result
+    }
+
     let workflow = workflow
-        .replace("__REFINER_CHECKPOINT__", &model_config.refiner)
-        .replace("__BASE_CHECKPOINT__", &model_config.baseline)
-        .replace("__NEGATIVE_PROMPT__", &negative_prompt)
-        .replace("__PROMPT_A__", &command.linguistic_prompt)
-        .replace("__PROMPT_B__", &supporting_prompt)
+        .replace("__REFINER_CHECKPOINT__", &json_encode_string(&model_config.refiner))
+        .replace("__BASE_CHECKPOINT__", &json_encode_string(&model_config.baseline))
+        .replace("__NEGATIVE_PROMPT__", &json_encode_string(&command.negative_prompt))
+        .replace("__PROMPT_A__", &json_encode_string(&command.linguistic_prompt))
+        .replace("__PROMPT_B__", &json_encode_string(&command.supporting_prompt))
         .replace("__STEPS_TOTAL__", &command.steps.to_string())
         .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
         .replace("__WIDTH__", &command.width.to_string())

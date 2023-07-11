@@ -23,12 +23,12 @@ impl Handler {
     async fn handle_dream(&self, ctx: &Context, command: &ApplicationCommandInteraction) -> anyhow::Result<()> {
         let prompt = command.data.options.get(0).context("Expected prompt")?.resolved.as_ref().context("Expected prompt")?;
         if let CommandDataOptionValue::String(prompt) = prompt {
-            let parsed = BackendCommand::from_dream(prompt).context("While parsing dream")?;
+            let parsed = BackendCommand::from_dream(prompt).context(format!("While parsing `{}`", prompt))?;
             let (tx, rx) = tokio::sync::oneshot::channel();
             self.dispatcher.send(QueuedCommand { command: parsed.clone(), sender: tx }).await?;
             // Create an interaction response to let the user know we're working on it.
             // Deferred won't work here; it takes too long.
-            let status = format!("Dreaming about `{}`", trim_string(&parsed.linguistic_prompt));
+            let status = format!("Dreaming about `{}`, style `{}`", trim_string(&parsed.linguistic_prompt), trim_string(&parsed.supporting_prompt));
             command.create_interaction_response(&ctx.http, |response| {
                 response.kind(InteractionResponseType::ChannelMessageWithSource)
                         .interaction_response_data(|message| {
