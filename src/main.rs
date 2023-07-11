@@ -66,9 +66,14 @@ impl BackendCommand {
                 // Did we previously see an option (that was missing its argument)?
                 last_value = Some(token);
             } else if token == "--no" {
+                reading_supporting_prompt = false;
                 reading_negative_prompt = true;
             } else if token == "--style" {
+                reading_negative_prompt = false;
                 reading_supporting_prompt = true;
+            } else if token == "--prompt" {
+                reading_supporting_prompt = false;
+                reading_negative_prompt = false;
             } else if let Some(token) = token.strip_prefix("--") {
                 // It's an option, but does it include the value?
                 let mut parts = token.splitn(2, '=');
