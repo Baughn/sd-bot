@@ -83,12 +83,21 @@ impl EventHandler for Handler {
                 Err(e) => {
                     error!("Error handling command: {:?}", e);
                     let e = trim_string(&format!("{:?}", e), 1800);
-                    command.create_interaction_response(&ctx.http, |response| {
+                    // We may or may not have already responded.
+                    // If we have, we'll delete the response and send a followup.
+                    // If we haven't, we'll send a response.
+                    if let Err(_) = command.create_interaction_response(&ctx.http, |response| {
                         response.kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|message| {
-                                    message.content(e)
+                                    message.content(format!("Error: {}", e))
                                 })
-                    }).await.unwrap();
+                    }).await {
+                        // Assume we already responded.
+                        command.create_followup_message(&ctx.http, |message| {
+                            message.content(format!("Error: {}", e))
+                        }).await.context("While sending error message").ok();
+                        command.delete_original_interaction_response(&ctx.http).await.context("While deleting status response").ok();
+                    }
                 }
             }
         }

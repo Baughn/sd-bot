@@ -360,7 +360,7 @@ fn build_query(batch_size: u32, command: BackendCommand) -> Result<RequestBuilde
 
 
 async fn dispatch_and_retry(command: QueuedCommand) -> Result<()> {
-    let retry_strategy = ExponentialBackoff::from_millis(500).max_delay(Duration::from_secs(5)).take(5);
+    let retry_strategy = ExponentialBackoff::from_millis(50).max_delay(Duration::from_secs(2)).take(5);
     let result = Retry::spawn(retry_strategy, || async {
         trace!("Dispatching command: {:?}", command.command);
         let result = dispatch(&command.command).await;
