@@ -115,6 +115,10 @@ impl BackendCommand {
                         let ar: f32 = ar_x / ar_y;
                         width = (1024.0 * ar.sqrt()).round() as u32;
                         height = (1024.0 / ar.sqrt()).round() as u32;
+                        // Make sure aspect ratio is less than 1:4.
+                        if ar > 4.0 || ar < 0.25 {
+                            bail!("Aspect ratio must be between 1:4 and 4:1");
+                        }
                         // Shrink dimensions so that they're multiples of 8.
                         width -= width % 8;
                         height -= height % 8;
