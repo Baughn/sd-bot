@@ -28,7 +28,7 @@ impl Handler {
             self.dispatcher.send(QueuedCommand { command: parsed.clone(), sender: tx }).await?;
             // Create an interaction response to let the user know we're working on it.
             // Deferred won't work here; it takes too long.
-            let status = format!("Dreaming about `{}`, style `{}`", trim_string(&parsed.linguistic_prompt, 500), trim_string(&parsed.supporting_prompt, 500));
+            let status = format!("Dreaming about `{}`, style `{}`", trim_string(&parsed.linguistic_prompt, 900), trim_string(&parsed.supporting_prompt, 500));
             command.create_interaction_response(&ctx.http, |response| {
                 response.kind(InteractionResponseType::ChannelMessageWithSource)
                         .interaction_response_data(|message| {
@@ -43,8 +43,8 @@ impl Handler {
             // And send the result, as a separate message.
             let urls = upload_images(images).await?.split_whitespace().collect::<Vec<_>>().join("\n");
             let text = vec![
-                format!("Dreams of `{}` | For {}", trim_string(&parsed.linguistic_prompt, 500), command.user.mention()),
-                format!("Style: `{}`", trim_string(&parsed.supporting_prompt, 500)),
+                format!("Dreams of `{}` | For {}", trim_string(&parsed.linguistic_prompt, 900), command.user.mention()),
+                format!("Style: `{}`", trim_string(&parsed.supporting_prompt, 900)),
                 format!("Seed {} | {}x{} | {} steps | Aesthetic {} | Guidance {}", parsed.seed, parsed.width, parsed.height, parsed.steps, parsed.aesthetic_scale, parsed.guidance_scale),
                 urls,
             ].join("\n");
@@ -82,7 +82,7 @@ impl EventHandler for Handler {
                 Ok(_) => (),
                 Err(e) => {
                     error!("Error handling command: {:?}", e);
-                    let e = trim_string(&format!("{:?}", e), 500);
+                    let e = trim_string(&format!("{:?}", e), 1800);
                     command.create_interaction_response(&ctx.http, |response| {
                         response.kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|message| {
