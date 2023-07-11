@@ -11,6 +11,11 @@ shellcheck "$0"
 
 export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN:-YOUR_TOKEN_HERE}"
 
+if [[ "$DISCORD_BOT_TOKEN" = "YOUR_TOKEN_HERE" ]]; then
+  echo 'Please edit start.sh to set your bot token, or pass it in'
+  exit 1
+fi
+
 # For debugging
 export RUST_LOG=info,sd_bot_2,tracing=warn,serenity=warn 
 export RUST_BACKTRACE=1
