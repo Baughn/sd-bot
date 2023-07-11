@@ -9,10 +9,17 @@ cd "$(dirname "$(readlink -f "$0")")"
 
 shellcheck "$0"
 
-export DISCORD_BOT_TOKEN="${DISCORD_BOT_TOKEN:-YOUR_TOKEN_HERE}"
+if [[ ! -e .env ]]; then
+  echo 'Please edit the .env file to add your bot token'
+  echo 'export DISCORD_BOT_TOKEN=your_token_here' > .env
+  exit 1
+fi
 
-if [[ "$DISCORD_BOT_TOKEN" = "YOUR_TOKEN_HERE" ]]; then
-  echo 'Please edit start.sh to set your bot token, or pass it in'
+# shellcheck source=/dev/null
+source .env
+
+if [[ "${DISCORD_BOT_TOKEN}" == "your_token_here" ]]; then
+  echo 'Please edit the .env file to add your bot token'
   exit 1
 fi
 
