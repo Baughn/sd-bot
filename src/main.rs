@@ -62,21 +62,21 @@ impl BackendCommand {
         let mut reading_negative_prompt = false;
 
         for token in dream.split_whitespace() {
-            if let Some(_) = last_option {
+            if last_option.is_some() {
                 // Did we previously see an option (that was missing its argument)?
                 last_value = Some(token);
             } else if token == "--no" {
                 reading_negative_prompt = true;
             } else if token == "--style" {
                 reading_supporting_prompt = true;
-            } else if token.starts_with("--") {
+            } else if let Some(token) = token.strip_prefix("--") {
                 // It's an option, but does it include the value?
-                let mut parts = token[2..].splitn(2, '=');
+                let mut parts = token.splitn(2, '=');
                 last_option = Some(parts.next().unwrap());
                 last_value = parts.next();
-            } else if token.starts_with("-") {
+            } else if let Some(token) = token.strip_prefix('-') {
                 // It's a short-form option, which never includes the value.
-                last_option = Some(token.strip_prefix("-").unwrap());
+                last_option = Some(token);
             } else {
                 // It's part of one of the prompts.
                 if reading_supporting_prompt {
@@ -128,10 +128,10 @@ impl BackendCommand {
         if supporting_prompt.is_empty() {
             bail!("Style prompt is required; use --style with `comic book, artistic` or something similar, e.g. `cat --style anime`. Style prompts should describe the genre, not the specific image.");
         }
-        if guidance_scale < 1.0 || guidance_scale > 30.0 {
+        if !(1.0..=30.0).contains(&guidance_scale) {
             bail!("Scale must be between 1 and 30");
         }
-        if aesthetic_scale < 1.0 || aesthetic_scale > 30.0 {
+        if !(1.0..=30.0).contains(&aesthetic_scale) {
             bail!("Aesthetic scale must be between 1 and 30");
         }
         if steps < 1 || count < 1 {
@@ -505,44 +505,41 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
 
     let mut stream = client.stream()?;
     while let Some(message) = stream.next().await.transpose()? {
-        match message.command {
-            Command::PRIVMSG(ref target, ref msg) => {
-                let target = target.to_owned();
-                let msg = msg.trim().to_owned();
-                let sender = client.sender();
-                let nickname = message.source_nickname().context("No nickname")?.to_owned();
-                let mut dispatcher = dispatcher.clone();
-                if !target.starts_with("#") {
-                    client.send_privmsg(nickname, "/msg is currently not supported, please use a channel.").context("failed to send message")?;
-                    continue;
-                }
-                tokio::spawn(async move {
-                    if msg.starts_with("!dream") {
-                        let answer: Result<String> = handle_dream(&target, &nickname, &msg, &mut dispatcher).await;
-                        match answer {
-                            Ok(answer) => {
-                                let answer = format!("{}: {}", nickname, answer);
-                                sender.send_privmsg(target, &answer).expect("failed to send answer");
-                            },
-                            Err(e) => {
-                                let e = e.to_string();
-                                let els: Vec<&str> = e.lines().collect();
-                                if els.len() > 1 {
-                                    for line in els {
-                                        error!("Error: {}", line);
-                                        sender.send_privmsg(&nickname, &line).expect("failed to send error message");
-                                        tokio::time::sleep(Duration::from_millis(500)).await;
-                                    }
-                                } else {
-                                    error!("Error: {e:?}");
-                                    sender.send_privmsg(&target, format!("{nickname}: {e:?}")).expect("failed to send error message");
+        if let Command::PRIVMSG(ref target, ref msg) = message.command {
+            let target = target.to_owned();
+            let msg = msg.trim().to_owned();
+            let sender = client.sender();
+            let nickname = message.source_nickname().context("No nickname")?.to_owned();
+            let mut dispatcher = dispatcher.clone();
+            if !target.starts_with('#') {
+                client.send_privmsg(nickname, "/msg is currently not supported, please use a channel.").context("failed to send message")?;
+                continue;
+            }
+            tokio::spawn(async move {
+                if msg.starts_with("!dream") {
+                    let answer: Result<String> = handle_dream(&target, &nickname, &msg, &mut dispatcher).await;
+                    match answer {
+                        Ok(answer) => {
+                            let answer = format!("{}: {}", nickname, answer);
+                            sender.send_privmsg(target, answer).expect("failed to send answer");
+                        },
+                        Err(e) => {
+                            let e = e.to_string();
+                            let els: Vec<&str> = e.lines().collect();
+                            if els.len() > 1 {
+                                for line in els {
+                                    error!("Error: {}", line);
+                                    sender.send_privmsg(&nickname, line).expect("failed to send error message");
+                                    tokio::time::sleep(Duration::from_millis(500)).await;
                                 }
+                            } else {
+                                error!("Error: {e:?}");
+                                sender.send_privmsg(&target, format!("{nickname}: {e:?}")).expect("failed to send error message");
                             }
                         }
                     }
-                });
-            },
-            _ => (),
+                }
+            });
         }
     }
 
