@@ -116,7 +116,7 @@ impl BackendCommand {
                         width = (1024.0 * ar.sqrt()).round() as u32;
                         height = (1024.0 / ar.sqrt()).round() as u32;
                         // Make sure aspect ratio is less than 1:4.
-                        if ar > 4.0 || ar < 0.25 {
+                        if !(0.25..=4.0).contains(&ar) {
                             bail!("Aspect ratio must be between 1:4 and 4:1");
                         }
                         // Shrink dimensions so that they're multiples of 8.
