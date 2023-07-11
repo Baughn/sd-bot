@@ -2,12 +2,12 @@ use std::{path, sync::Arc, io::{Write, BufWriter, Cursor}, vec, net::TcpStream, 
 
 use anyhow::{Result, bail, Context};
 use base64::prelude::*;
-use futures::{prelude::*, stream::FuturesUnordered, channel::oneshot};
+use futures::{prelude::*};
 use irc::{client::prelude::*, error};
 use log::{info, warn, error, debug, trace};
 use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{mpsc, Notify, oneshot};
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 
 mod discord;
@@ -18,8 +18,8 @@ const WEBHOST_DIR: &str = "GAN/ganbot2";
 const CLIENT_ID: &str = "ganbot2";
 
 
-#[derive(Debug, Serialize, Deserialize)]
-struct BackendCommand {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackendCommand {
     model_name: String, // --model, -m
     linguistic_prompt: String, // Default.
     supporting_prompt: String, // --style -s
@@ -37,7 +37,7 @@ struct BackendCommand {
 }
 
 impl BackendCommand {
-    fn from_dream(dream: &str) -> Result<Self> {
+    pub fn from_dream(dream: &str) -> Result<Self> {
         // This parses the !dream IRC/Discord command.
         // It's basically a command line, but with special handling for --style and --no.
         // TODO: Load some of this from config.json.
@@ -171,7 +171,7 @@ struct BackendResponse {
 type JpegBlob = Vec<u8>;
 
 #[derive(Debug)]
-enum CommandResult {
+pub enum CommandResult {
     Failure(String),
     Success(Vec<JpegBlob>),
 }
@@ -304,6 +304,8 @@ fn build_query(batch_size: u32, command: &BackendCommand) -> Result<RequestBuild
         .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
         .replace("__WIDTH__", &command.width.to_string())
         .replace("__HEIGHT__", &command.height.to_string())
+        .replace("__4xWIDTH__", &(command.width * 4).to_string())
+        .replace("__4xHEIGHT__", &(command.height * 4).to_string())
         .replace("__SEED__", &command.seed.to_string())
         .replace("__BASE_CFG__", &command.guidance_scale.to_string())
         .replace("__REFINER_CFG__", &command.guidance_scale.to_string())
@@ -448,7 +450,7 @@ async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut 
     }
 }
 
-async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {
+pub async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {
     let uuid = uuid::Uuid::new_v4();
     let mut urls = Vec::new();
     for (i, data) in images.iter().enumerate() {
@@ -507,10 +509,17 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                                 sender.send_privmsg(target, &answer).expect("failed to send answer");
                             },
                             Err(e) => {
-                                for line in e.to_string().lines() {
-                                    error!("Error: {}", line);
-                                    sender.send_privmsg(&nickname, &line).expect("failed to send error message");
-                                    tokio::time::sleep(Duration::from_millis(500)).await;
+                                let e = e.to_string();
+                                let els: Vec<&str> = e.lines().collect();
+                                if els.len() > 1 {
+                                    for line in els {
+                                        error!("Error: {}", line);
+                                        sender.send_privmsg(&nickname, &line).expect("failed to send error message");
+                                        tokio::time::sleep(Duration::from_millis(500)).await;
+                                    }
+                                } else {
+                                    error!("Error: {e:?}");
+                                    sender.send_privmsg(&target, format!("{nickname}: {e:?}")).expect("failed to send error message");
                                 }
                             }
                         }

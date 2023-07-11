@@ -94,12 +94,12 @@
   },
   "75": {
     "inputs": {
-      "width": 4096,
-      "height": 4096,
+      "width": __4xWIDTH__,
+      "height": __4xHEIGHT__,
       "crop_w": 0,
       "crop_h": 0,
-      "target_width": 4096,
-      "target_height": 4096,
+      "target_width": __4xWIDTH__,
+      "target_height": __4xHEIGHT__,
       "text_g": "__PROMPT_A__",
       "text_l": "__PROMPT_B__",
       "clip": [
@@ -112,8 +112,8 @@
   "81": {
     "inputs": {
       "ascore": __NEGATIVE_A_SCORE__,
-      "width": 4096,
-      "height": 4096,
+      "width": __4xWIDTH__,
+      "height": __4xHEIGHT__,
       "text": "__NEGATIVE_PROMPT__",
       "clip": [
         "4",
@@ -124,12 +124,12 @@
   },
   "82": {
     "inputs": {
-      "width": 4096,
-      "height": 4096,
+      "width": __4xWIDTH__,
+      "height": __4xHEIGHT__,
       "crop_w": 0,
       "crop_h": 0,
-      "target_width": 4096,
-      "target_height": 4096,
+      "target_width": __4xWIDTH__,
+      "target_height": __4xHEIGHT__,
       "text_g": "__NEGATIVE_PROMPT__",
       "text_l": "__NEGATIVE_PROMPT__",
       "clip": [
@@ -142,8 +142,8 @@
   "120": {
     "inputs": {
       "ascore": __POSITIVE_A_SCORE__,
-      "width": 4096,
-      "height": 4096,
+      "width": __4xWIDTH__,
+      "height": __4xHEIGHT__,
       "text": "__PROMPT_A__",
       "clip": [
         "4",
