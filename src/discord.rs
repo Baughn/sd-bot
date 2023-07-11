@@ -1,8 +1,8 @@
-use std::fmt::Result;
+
 
 use anyhow::{Context as anyhowCtx, bail};
 use log::{info, error};
-use serenity::{prelude::*, http::Http, async_trait, model::{prelude::{*, command::{Command, CommandOption, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}}}};
+use serenity::{prelude::*, async_trait, model::{prelude::{*, command::{Command, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}}}};
 use tokio::sync::mpsc;
 use unicode_segmentation::UnicodeSegmentation;
 

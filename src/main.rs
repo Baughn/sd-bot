@@ -1,13 +1,13 @@
-use std::{path, sync::Arc, io::{Write, BufWriter, Cursor}, vec, net::TcpStream, fs::Permissions, os::unix::prelude::PermissionsExt, time::Duration, future::pending, pin::Pin, collections::HashMap};
+use std::{path, io::{Write}, vec, os::unix::prelude::PermissionsExt, time::Duration, future::pending, pin::Pin, collections::HashMap};
 
 use anyhow::{Result, bail, Context};
-use base64::prelude::*;
+
 use futures::{prelude::*};
-use irc::{client::prelude::*, error};
+use irc::{client::prelude::*};
 use log::{info, warn, error, debug, trace};
 use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
-use tokio::sync::{mpsc, Notify, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 
 mod discord;
@@ -313,9 +313,9 @@ fn build_query(batch_size: u32, command: &BackendCommand) -> Result<RequestBuild
     let workflow = workflow
         .replace("__REFINER_CHECKPOINT__", &json_encode_string(&model_config.refiner))
         .replace("__BASE_CHECKPOINT__", &json_encode_string(&model_config.baseline))
-        .replace("__NEGATIVE_PROMPT__", &json_encode_string(&command.negative_prompt))
+        .replace("__NEGATIVE_PROMPT__", &json_encode_string(&negative_prompt))
         .replace("__PROMPT_A__", &json_encode_string(&command.linguistic_prompt))
-        .replace("__PROMPT_B__", &json_encode_string(&command.supporting_prompt))
+        .replace("__PROMPT_B__", &json_encode_string(&supporting_prompt))
         .replace("__STEPS_TOTAL__", &command.steps.to_string())
         .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
         .replace("__WIDTH__", &command.width.to_string())
