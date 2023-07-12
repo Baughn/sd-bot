@@ -508,7 +508,10 @@ async fn handle_prompt(target: &str, nickname: &str, msg: &str, dispatcher: &mut
 async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut mpsc::Sender<QueuedCommand>) -> Result<String> {
     info!("dream from {} in {}: {}", nickname, target, msg);
     let prompt = crate::gpt::prompt_completion(&format!("irc:{target}:{nickname}"), msg).await?.to_string();
-    handle_prompt(target, nickname, &prompt, dispatcher).await
+    let result = handle_prompt(target, nickname, &prompt, dispatcher).await
+        .map(|urls| format!("{}\n{}", prompt, urls));
+    trace!("dream result: {:?}", result);
+    result
 }
 
 pub async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {
@@ -572,7 +575,21 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                         match answer {
                             Ok(answer) => {
                                 let answer = format!("{}: {}", nickname, answer);
-                                sender.send_privmsg(target, answer).expect("failed to send answer");
+                                // Format the answer.
+                                // It already may contain lines, but also we want to break any
+                                // lines that are too long.
+                                let length_limit = 350;
+                                for line in answer.lines() {
+                                    let mut line = line;
+                                    while line.len() > length_limit {
+                                        let split = line[..length_limit].rfind(' ').unwrap_or(0);
+                                        let (first, second) = line.split_at(split);
+                                        sender.send_privmsg(&target, first).expect("failed to send answer");
+                                        tokio::time::sleep(Duration::from_millis(500)).await;
+                                        line = second.trim_start();
+                                    }
+                                    sender.send_privmsg(&target, line).expect("failed to send answer");
+                                }
                             },
                             Err(e) => {
                                 let e = e.to_string();
