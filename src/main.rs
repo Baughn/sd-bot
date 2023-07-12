@@ -9,10 +9,12 @@ use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
 use tokio::sync::{mpsc, oneshot};
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
+use tokio_tungstenite as ws;
 
 mod discord;
 
 const BACKEND: &str = "http://localhost:8188";
+const BACKEND_WS: &str = "ws://localhost:8188/ws";
 const WEBHOST: &str = "brage.info";
 const WEBHOST_DIR: &str = "GAN/ganbot2";
 const CLIENT_ID: &str = "ganbot2";
@@ -226,9 +228,23 @@ async fn dispatch(command: &BackendCommand) -> Result<CommandResult> {
         let prompt_id = parsed.prompt_id;
         debug!("Got prompt ID {}", prompt_id);
         // Now, we need to poll the history endpoint until it's done.
+        // We limit the traffic by reading the websocket, only polling when it update or if
+        // it's been a second.
         let mut filenames = None;
-        for _ in 0..2000 {
-            tokio::time::sleep(Duration::from_millis(50)).await;
+        let mut ws_client = ws::connect_async(format!("{}?clientId={}", BACKEND_WS, prompt_id)).await.context("failed to connect to websocket")?.0;
+        for _ in 0..=2 {
+            tokio::select! {
+                msg = ws_client.next() => {
+                    trace!("Got websocket message: {:?}", msg);
+                    // Something happened, so we should poll the history endpoint.
+                    // We'll do that below.
+                },
+                _ = tokio::time::sleep(Duration::from_secs(60)) => {
+                    warn!("Websocket sleep timed out");
+                    // Really this should never happen, but try to recover anyway.
+                },
+            };
+            trace!("Polling history");
             let client = reqwest::Client::new();
             let history: serde_json::Value = client.get(format!("{}/history/{}", BACKEND, prompt_id))
                 .send()

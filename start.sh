@@ -24,8 +24,8 @@ if [[ "${DISCORD_BOT_TOKEN}" == "your_token_here" ]]; then
 fi
 
 # For debugging
-export RUST_LOG=info,sd_bot_2,tracing=warn,serenity=warn 
-export RUST_BACKTRACE=1
+export RUST_LOG="${RUST_LOG:-info,sd_bot_2,tracing=warn,serenity=warn}"
+#export RUST_BACKTRACE=1
 export COMPILE_FLAGS=()
 
 # For release
