@@ -50,7 +50,7 @@ impl BackendCommand {
         let mut use_pos_default = true;
         let mut use_neg_default = true;
         let mut guidance_scale = 8.0;
-        let mut aesthetic_scale = 8.0;
+        let mut aesthetic_scale = 20.0;
         let mut steps = 50;
         let mut count = 2;
         // Default seed is the POSIX timestamp.
@@ -137,7 +137,7 @@ impl BackendCommand {
             bail!("Linguistic prompt is required");
         }
         if supporting_prompt.is_empty() {
-            bail!("Style prompt is required; use --style with `comic book, artistic` or something similar, e.g. `cat --style anime`. Style prompts should describe the genre, not the specific image.");
+            supporting_prompt = linguistic_prompt.clone();
         }
         if !(1.0..=30.0).contains(&guidance_scale) {
             bail!("Scale must be between 1 and 30");
