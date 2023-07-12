@@ -55,8 +55,8 @@ impl BackendCommand {
         let mut count = 2;
         // Default seed is the POSIX timestamp.
         let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as u32;
-        let mut width = 1280;
-        let mut height = 816;
+        let mut width = 1024;
+        let mut height = 1024;
         
         let mut last_option = None;
         let mut last_value = None;
