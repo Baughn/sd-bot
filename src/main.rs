@@ -12,6 +12,7 @@ use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 
 mod discord;
+mod gpt;
 
 const BACKEND: &str = "http://localhost:8188";
 const BACKEND_WS: &str = "ws://localhost:8188/ws";
@@ -39,7 +40,7 @@ pub struct BackendCommand {
 }
 
 impl BackendCommand {
-    pub fn from_dream(dream: &str) -> Result<Self> {
+    pub fn from_prompt(dream: &str) -> Result<Self> {
         // This parses the !dream IRC/Discord command.
         // It's basically a command line, but with special handling for --style and --no.
         // TODO: Load some of this from config.json.
@@ -64,9 +65,21 @@ impl BackendCommand {
         let mut reading_negative_prompt = false;
 
         for token in dream.split_whitespace() {
+            let mut add_to_prompt = |token| {
+                if reading_supporting_prompt {
+                    supporting_prompt.push(token);
+                } else if reading_negative_prompt {
+                    negative_prompt.push(token);
+                } else {
+                    linguistic_prompt.push(token);
+                }
+            };
             if last_option.is_some() {
                 // Did we previously see an option (that was missing its argument)?
                 last_value = Some(token);
+            } else if token == "-" || token == "--" {
+                // These should be treated as part of the prompt.
+                add_to_prompt(token);
             } else if token == "--no" {
                 reading_supporting_prompt = false;
                 reading_negative_prompt = true;
@@ -86,13 +99,7 @@ impl BackendCommand {
                 last_option = Some(token);
             } else {
                 // It's part of one of the prompts.
-                if reading_supporting_prompt {
-                    supporting_prompt.push(token);
-                } else if reading_negative_prompt {
-                    negative_prompt.push(token);
-                } else {
-                    linguistic_prompt.push(token);
-                }
+                add_to_prompt(token);
             }
             // Did we just finish reading an option?
             if let Some(value) = last_value {
@@ -475,14 +482,14 @@ async fn dispatcher(mut commands: mpsc::Receiver<QueuedCommand>) -> Result<()> {
     }
 }
 
-// Handles a !dream command.
-async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut mpsc::Sender<QueuedCommand>) -> Result<String> {
-    info!("!dream from {} in {}: {}", nickname, target, msg);
+// Handles a !prompt command, or the GPT-completion of a !dream command.
+async fn handle_prompt(target: &str, nickname: &str, msg: &str, dispatcher: &mut mpsc::Sender<QueuedCommand>) -> Result<String> {
+    info!("prompt from {} in {}: {}", nickname, target, msg);
     let (sender, receiver) = oneshot::channel();
     // Parse the command.
     let prompt = msg.trim_start_matches("!dream").trim();
     let command = QueuedCommand {
-        command: BackendCommand::from_dream(prompt)?,
+        command: BackendCommand::from_prompt(prompt)?,
         sender,
     };
     dispatcher.send(command).await.context("failed to send command")?;
@@ -496,6 +503,12 @@ async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut 
             Ok(url)
         },
     }
+}
+
+async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut mpsc::Sender<QueuedCommand>) -> Result<String> {
+    info!("dream from {} in {}: {}", nickname, target, msg);
+    let prompt = crate::gpt::prompt_completion(&format!("irc:{target}:{nickname}"), msg).await?.to_string();
+    handle_prompt(target, nickname, &prompt, dispatcher).await
 }
 
 pub async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {
@@ -548,25 +561,32 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                 continue;
             }
             tokio::spawn(async move {
-                if msg.starts_with("!dream") {
-                    let answer: Result<String> = handle_dream(&target, &nickname, &msg, &mut dispatcher).await;
-                    match answer {
-                        Ok(answer) => {
-                            let answer = format!("{}: {}", nickname, answer);
-                            sender.send_privmsg(target, answer).expect("failed to send answer");
-                        },
-                        Err(e) => {
-                            let e = e.to_string();
-                            let els: Vec<&str> = e.lines().collect();
-                            if els.len() > 1 {
-                                for line in els {
-                                    error!("Error: {}", line);
-                                    sender.send_privmsg(&nickname, line).expect("failed to send error message");
-                                    tokio::time::sleep(Duration::from_millis(500)).await;
+                if let Some(command) = msg.strip_prefix('!') {
+                    let command = command.splitn(2, ' ').collect::<Vec<_>>();
+                    let answer = match command[0] {
+                        "dream" => Some(handle_dream(&target, &nickname, command[1], &mut dispatcher).await),
+                        "prompt" => Some(handle_prompt(&target, &nickname, command[1], &mut dispatcher).await),
+                        _ => None,
+                    };
+                    if let Some(answer) = answer {
+                        match answer {
+                            Ok(answer) => {
+                                let answer = format!("{}: {}", nickname, answer);
+                                sender.send_privmsg(target, answer).expect("failed to send answer");
+                            },
+                            Err(e) => {
+                                let e = e.to_string();
+                                let els: Vec<&str> = e.lines().collect();
+                                if els.len() > 1 {
+                                    for line in els {
+                                        error!("Error: {}", line);
+                                        sender.send_privmsg(&nickname, line).expect("failed to send error message");
+                                        tokio::time::sleep(Duration::from_millis(500)).await;
+                                    }
+                                } else {
+                                    error!("Error: {e:?}");
+                                    sender.send_privmsg(&target, format!("{nickname}: {e:?}")).expect("failed to send error message");
                                 }
-                            } else {
-                                error!("Error: {e:?}");
-                                sender.send_privmsg(&target, format!("{nickname}: {e:?}")).expect("failed to send error message");
                             }
                         }
                     }

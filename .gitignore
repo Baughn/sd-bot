@@ -21,3 +21,4 @@ Cargo.lock
 /output
 /logs
 /__pycache__
+/prompt-completions.log

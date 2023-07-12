@@ -59,6 +59,8 @@ let
     ninja
     zlib
     nodejs
+    openssl
+    pkg-config
   ]);
 in
 
