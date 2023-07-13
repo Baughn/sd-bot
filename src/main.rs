@@ -159,6 +159,11 @@ impl BackendCommand {
             bail!("Count must be 16 or less");
         }
 
+        // Add a . to the last entry of the linguistic prompt.
+        let elast = format!("{}.", linguistic_prompt.last().unwrap());
+        *linguistic_prompt.last_mut().unwrap() = &elast;
+        linguistic_prompt.extend(supporting_prompt.iter().cloned());
+
         let command = BackendCommand {
             model_name: model_name.to_string(),
             linguistic_prompt: linguistic_prompt.join(" "),
@@ -602,7 +607,7 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                                     }
                                 } else {
                                     error!("Error: {e:?}");
-                                    sender.send_privmsg(&target, format!("{nickname}: {e:?}")).expect("failed to send error message");
+                                    sender.send_privmsg(&target, format!("{nickname}: {e}")).expect("failed to send error message");
                                 }
                             }
                         }
