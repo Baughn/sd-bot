@@ -61,6 +61,7 @@ let
     nodejs
     openssl
     pkg-config
+    mold
   ]);
 in
 

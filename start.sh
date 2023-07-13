@@ -1,5 +1,5 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p shellcheck cargo rustc openssl pkg-config
+#!nix-shell -i bash -p shellcheck
 # shellcheck shell=bash
 #
 # Start script that sets bot token, etc.
@@ -26,6 +26,5 @@ fi
 # For debugging
 export RUST_LOG="${RUST_LOG:-info,sd_bot_2,tracing=warn,serenity=warn}"
 #export RUST_BACKTRACE=1
-export COMPILE_FLAGS=(--release)
 
-cargo run "${COMPILE_FLAGS[@]}"
+nix-shell --run "cargo run --release"
