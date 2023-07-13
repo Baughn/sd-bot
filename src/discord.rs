@@ -22,31 +22,21 @@ fn trim_string(s: &str, limit: usize) -> String {
 
 impl Handler {
     // Uses GPT-4 to generate a prompt from a loose description, then passes it to handle_prompt.
-    async fn handle_dream(&self, ctx: &Context, command: &ApplicationCommandInteraction) -> anyhow::Result<()> {
-        let dream = command.data.options.get(0).context("Expected dream")?.resolved.as_ref().context("Expected dream")?;
-        if let CommandDataOptionValue::String(dream) = dream {
-            // Deferring the response here is important, because the completion can take a while.
-            // If we don't defer, Discord will time us out.
-            command.defer(&ctx.http).await?;
+    async fn handle_dream(&self, ctx: &Context, command: &ApplicationCommandInteraction, dream: &str) -> anyhow::Result<()> {
+        // Deferring the response here is important, because the completion can take a while.
+        // If we don't defer, Discord will time us out.
+        command.defer(&ctx.http).await?;
 
-            let prompt = gpt::prompt_completion(
-                &command.user.to_string(),
-                dream,
-            ).await.context("While generating prompt")?;
+        let prompt = gpt::prompt_completion(
+            &command.user.to_string(),
+            dream,
+        ).await.context("While generating prompt")?;
 
-            self.do_handle_prompt(ctx, command, &prompt.to_string(), true).await
-        } else {
-            bail!("Expected parameter to be a string");
-        }
+        self.do_handle_prompt(ctx, command, &prompt.to_string(), true).await
     }
 
-    async fn handle_prompt(&self, ctx: &Context, command: &ApplicationCommandInteraction) -> anyhow::Result<()> {
-        let prompt = command.data.options.get(0).context("Expected prompt")?.resolved.as_ref().context("Expected prompt")?;
-        if let CommandDataOptionValue::String(prompt) = prompt {
-            self.do_handle_prompt(ctx, command, prompt, false).await
-        } else {
-            bail!("Expected parameter to be a string");
-        }
+    async fn handle_prompt(&self, ctx: &Context, command: &ApplicationCommandInteraction, prompt: &str) -> anyhow::Result<()> {
+        self.do_handle_prompt(ctx, command, prompt, false).await
     }
 
     async fn do_handle_prompt(&self, ctx: &Context, command: &ApplicationCommandInteraction, prompt: &str, was_deferred: bool) -> anyhow::Result<()> {
@@ -92,9 +82,20 @@ impl Handler {
     }
 
     async fn handle_command(&self, ctx: &Context, command: &ApplicationCommandInteraction) -> anyhow::Result<()> {
-        match command.data.name.as_str() {
-            "dream" => self.handle_dream(ctx, command).await,
-            "prompt" => self.handle_prompt(ctx, command).await,
+        let cmd = command.data.name.as_str();
+        match cmd {
+            "dream" | "prompt" => {
+                let prompt = command.data.options.get(0).context("Expected prompt")?.resolved.as_ref().context("Expected prompt")?;
+                if let CommandDataOptionValue::String(prompt) = prompt {
+                    match cmd {
+                        "dream" => self.handle_dream(ctx, command, prompt).await,
+                        "prompt" => self.handle_prompt(ctx, command, prompt).await,
+                        _ => unreachable!(),
+                    }.context(format!("While handling `{}`", prompt))
+                } else {
+                    bail!("Expected parameter to be a string");
+                }
+            },
             _ => bail!("Unknown command"),
         }
     }
