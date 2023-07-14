@@ -39,25 +39,69 @@ pub struct BackendCommand {
     height: u32,
 }
 
+impl Default for BackendCommand {
+    fn default() -> Self {
+        Self {
+            model_name: "default".to_string(),
+            linguistic_prompt: "".to_string(),
+            supporting_prompt: "".to_string(),
+            negative_prompt: "".to_string(),
+            use_pos_default: true,
+            use_neg_default: true,
+            guidance_scale: 8.0,
+            aesthetic_scale: 20.0,
+            steps: 50,
+            count: 2,
+            seed: 0,
+            width: 1024,
+            height: 1024,
+        }
+    }
+}
+
+
 impl BackendCommand {
+    pub fn parse_aspect_ratio(value: &str) -> Result<(u32, u32)> {
+        let mut parts = value.splitn(2, ':');
+        let ar_x = parts.next().context("AR must be in the form W:H")?;
+        let ar_y = parts.next().context("AR must be in the form W:H")?;
+        let ar_x: f32 = ar_x.parse().context("AR must be in the form W:H")?;
+        let ar_y: f32 = ar_y.parse().context("AR must be in the form W:H")?;
+        // Width and height are derived from AR.
+        // The total number of pixels is fixed at 1 megapixel.
+        let ar: f32 = ar_x / ar_y;
+        let mut width = (1024.0 * ar.sqrt()).round() as u32;
+        let mut height = (1024.0 / ar.sqrt()).round() as u32;
+        // Make sure aspect ratio is less than 1:4.
+        if !(0.25..=4.0).contains(&ar) {
+            bail!("Aspect ratio must be between 1:4 and 4:1");
+        }
+        // Shrink dimensions so that they're multiples of 8.
+        width -= width % 8;
+        height -= height % 8;
+
+        Ok((width, height))
+    }
+
     pub fn from_prompt(dream: &str) -> Result<Self> {
         // This parses the !dream IRC/Discord command.
         // It's basically a command line, but with special handling for --style and --no.
         // TODO: Load some of this from config.json.
+        let defaults = Self::default();
         let mut model_name = "default";
         let mut linguistic_prompt = vec![];
         let mut supporting_prompt = vec![];
         let mut negative_prompt = vec![];
-        let mut use_pos_default = true;
-        let mut use_neg_default = true;
-        let mut guidance_scale = 8.0;
-        let mut aesthetic_scale = 20.0;
-        let mut steps = 50;
-        let mut count = 2;
+        let mut use_pos_default = defaults.use_pos_default;
+        let mut use_neg_default = defaults.use_neg_default;
+        let mut guidance_scale = defaults.guidance_scale;
+        let mut aesthetic_scale = defaults.aesthetic_scale;
+        let mut steps = defaults.steps;
+        let mut count = defaults.count;
         // Default seed is the POSIX timestamp.
         let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as u32;
-        let mut width = 1024;
-        let mut height = 1024;
+        let mut width = defaults.width;
+        let mut height = defaults.height;
         
         let mut last_option = None;
         let mut last_value = None;
@@ -114,23 +158,7 @@ impl BackendCommand {
                     "count" | "c" => count = value.parse().context("Count must be a number")?,
                     "seed" => seed = value.parse().context("Seed must be a number")?,
                     "ar" => {
-                        let mut parts = value.splitn(2, ':');
-                        let ar_x = parts.next().context("AR must be in the form W:H")?;
-                        let ar_y = parts.next().context("AR must be in the form W:H")?;
-                        let ar_x: f32 = ar_x.parse().context("AR must be in the form W:H")?;
-                        let ar_y: f32 = ar_y.parse().context("AR must be in the form W:H")?;
-                        // Width and height are derived from AR.
-                        // The total number of pixels is fixed at 1 megapixel.
-                        let ar: f32 = ar_x / ar_y;
-                        width = (1024.0 * ar.sqrt()).round() as u32;
-                        height = (1024.0 / ar.sqrt()).round() as u32;
-                        // Make sure aspect ratio is less than 1:4.
-                        if !(0.25..=4.0).contains(&ar) {
-                            bail!("Aspect ratio must be between 1:4 and 4:1");
-                        }
-                        // Shrink dimensions so that they're multiples of 8.
-                        width -= width % 8;
-                        height -= height % 8;
+                        (width, height) = Self::parse_aspect_ratio(value)?;
                     },
                     x => bail!("Unknown option: {}", x),
                 }
@@ -504,19 +532,32 @@ async fn handle_prompt(target: &str, nickname: &str, msg: &str, dispatcher: &mut
             bail!("failed to generate image: {}", e);
         },
         CommandResult::Success(images) => {
-            let url = upload_images(images).await.context("failed to upload images")?;
-            Ok(url)
+            let urls = upload_images(images).await.context("failed to upload images")?;
+            Ok(urls)
         },
     }
 }
 
 async fn handle_dream(target: &str, nickname: &str, msg: &str, dispatcher: &mut mpsc::Sender<QueuedCommand>) -> Result<String> {
+    // TODO fix duplication
     info!("dream from {} in {}: {}", nickname, target, msg);
-    let prompt = crate::gpt::prompt_completion(&format!("irc:{target}:{nickname}"), msg).await?.to_string();
-    let result = handle_prompt(target, nickname, &prompt, dispatcher).await
-        .map(|urls| format!("{}\n{}", prompt, urls));
-    trace!("dream result: {:?}", result);
-    result
+    let parsed = crate::gpt::prompt_completion(&format!("irc:{target}:{nickname}"), msg).await?;
+    let generated = format!("{} --style {}", parsed.linguistic_prompt, parsed.supporting_prompt);
+    let (sender, receiver) = oneshot::channel();
+    let command = QueuedCommand { command: parsed, sender };
+    dispatcher.send(command).await.context("failed to send command")?;
+    let result = receiver.await.context("failed to receive command result")?;
+    match result {
+        CommandResult::Failure(e) => {
+            bail!("failed to generate image: {}", e);
+        },
+        CommandResult::Success(images) => {
+            // Add in the generated prompt.
+            let response = upload_images(images).await.context("failed to upload images")
+                .map(|urls| format!("{}\n{}", generated, urls))?;
+            Ok(response)
+        },
+    }
 }
 
 pub async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {

@@ -27,20 +27,20 @@ impl Handler {
         // If we don't defer, Discord will time us out.
         command.defer(&ctx.http).await?;
 
-        let prompt = gpt::prompt_completion(
+        let parsed = gpt::prompt_completion(
             &command.user.to_string(),
             dream,
         ).await.context("While generating prompt")?;
 
-        self.do_handle_prompt(ctx, command, &prompt.to_string(), true).await
+        self.dispatch(ctx, command, parsed, true).await
     }
 
     async fn handle_prompt(&self, ctx: &Context, command: &ApplicationCommandInteraction, prompt: &str) -> anyhow::Result<()> {
-        self.do_handle_prompt(ctx, command, prompt, false).await
+        let parsed = BackendCommand::from_prompt(prompt).context(format!("While parsing `{}`", prompt))?;
+        self.dispatch(ctx, command, parsed, false).await
     }
 
-    async fn do_handle_prompt(&self, ctx: &Context, command: &ApplicationCommandInteraction, prompt: &str, was_deferred: bool) -> anyhow::Result<()> {
-        let parsed = BackendCommand::from_prompt(prompt).context(format!("While parsing `{}`", prompt))?;
+    async fn dispatch(&self, ctx: &Context, command: &ApplicationCommandInteraction, parsed: BackendCommand, was_deferred: bool) -> anyhow::Result<()> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.dispatcher.send(QueuedCommand { command: parsed.clone(), sender: tx }).await?;
         // Create an interaction response to let the user know we're working on it.
