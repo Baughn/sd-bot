@@ -59,7 +59,10 @@ pub async fn prompt_completion(user: &str, dream: &str) -> Result<BackendCommand
         logit_bias: None,
         user: Some(user.to_string()),
     };
-    let result = client.chat_completion(req).await.context("While completing prompt")?;
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        client.chat_completion(req)
+        ).await.context("While completing prompt")??;
     log::info!("Autocompleted {} to {:?}", dream, result);
     let result = result.choices.get(0).context("No choices in GPT response")?.message.content.clone().context("No content in GPT response")?;
     // Also save these to a file, for later fine-tuning of a local model.
@@ -79,6 +82,8 @@ pub async fn prompt_completion(user: &str, dream: &str) -> Result<BackendCommand
         linguistic_prompt: parsed.prompt,
         supporting_prompt: parsed.style,
         width, height,
+        use_pos_default: false,
+        use_neg_default: false,
         ..Default::default()
     })
 }
