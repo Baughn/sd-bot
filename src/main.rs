@@ -272,7 +272,7 @@ async fn dispatch(command: &BackendCommand) -> Result<CommandResult> {
         // it's been a second.
         let mut filenames = None;
         let mut ws_client = ws::connect_async(format!("{}?clientId={}", BACKEND_WS, prompt_id)).await.context("failed to connect to websocket")?.0;
-        for _ in 0..=2 {
+        for _ in 0..30 {
             tokio::select! {
                 msg = ws_client.next() => {
                     trace!("Got websocket message: {:?}", msg);
@@ -635,6 +635,7 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                                         line = second.trim_start();
                                     }
                                     sender.send_privmsg(&target, line).expect("failed to send answer");
+                                    tokio::time::sleep(Duration::from_millis(500)).await;
                                 }
                             },
                             Err(e) => {
