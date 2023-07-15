@@ -13,6 +13,12 @@
     },
     "class_type": "EmptyLatentImage"
   },
+  "vae": {
+    "inputs": {
+      "vae_name": "sdxl_vae_fp16_fix.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
   "8": {
     "inputs": {
       "samples": [
@@ -20,8 +26,8 @@
         0
       ],
       "vae": [
-        "4",
-        2
+        "vae",
+        0
       ]
     },
     "class_type": "VAEDecode"
