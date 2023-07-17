@@ -10,21 +10,16 @@ use anyhow::{Context, Result};
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotConfig {
     pub command_prefix: String,
-    pub discord: DiscordConfig,
+    #[serde(default)]
     pub irc: Vec<IrcConfig>,
     pub aliases: HashMap<String, String>,
     pub models: HashMap<String, BotModelConfig>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DiscordConfig {
-    // Nothing here yet.
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct IrcConfig {
     pub server: String,
     pub port: u16,
@@ -32,7 +27,7 @@ pub struct IrcConfig {
     pub channels: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotModelConfig {
     pub workflow: String,
     pub baseline: String,
@@ -60,20 +55,59 @@ pub fn get() -> MutexGuard<'static, BotConfig> {
     CONFIG.lock().unwrap()
 }
 
+pub fn testconfig() -> BotConfig {
+    toml::from_str(include_str!("../testdata/config.toml")).unwrap()
+}
+
 fn update_config(old: &mut BotConfig, new: BotConfig) {
     // Check what has changed.
     // We panic if:
-    // - The command prefix changes.
     // - The Discord or IRC config changes.
     // Otherwise, we just update the config.
-    if old.command_prefix != new.command_prefix {
-        panic!("Command prefix changed from {} to {}", old.command_prefix, new.command_prefix);
-    }
-    if old.discord != new.discord {
-        panic!("Discord config changed");
-    }
     if old.irc != new.irc {
         panic!("IRC config changed");
     }
     *old = new;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialization() {
+        let config = BotConfig {
+            command_prefix: "!".to_string(),
+            irc: vec![
+                IrcConfig {
+                    server: "irc.example.com".to_string(),
+                    port: 6667,
+                    nick: "bot".to_string(),
+                    channels: vec!["#bot".to_string()],
+                }
+            ],
+            aliases: HashMap::from([
+                ("foo".to_string(), "bar".to_string()),
+            ]),
+            models: HashMap::from([
+                ("foo".to_string(), BotModelConfig {
+                    workflow: "1".to_string(),
+                    baseline: "2".to_string(),
+                    refiner: "3".to_string(),
+                    default_positive: "4".to_string(),
+                    default_negative: "5".to_string(),
+                }),
+            ]),
+        };
+        let text = toml::to_string(&config).unwrap();
+        let config2 = toml::from_str(&text).unwrap();
+        assert_eq!(config, config2);
+        // Compare to the golden data from testdata/config.toml.
+        assert_eq!(text, include_str!("../testdata/config.toml"));
+    }
+
+    #[test]
+    fn test_testconfig() {
+        testconfig();
+    }
 }

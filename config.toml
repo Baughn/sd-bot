@@ -1,0 +1,23 @@
+command_prefix = "dev-"
+
+[[irc]]
+server = "irc.rizon.net"
+port = 6697
+nick = "GANBot-dev"
+channels = ["#nanobot"]
+
+[[irc]]
+server = "irc.libera.chat"
+port = 6697
+nick = "GANBot-dev"
+channels = ["#questionablebotting"]
+
+[aliases]
+default = "sdxl_0.9"
+
+[models."sdxl_0.9"]
+workflow = "workflow-sdxl.json.tmpl"
+baseline = "sd_xl_base_0.9.safetensors"
+refiner = "sd_xl_refiner_0.9.safetensors"
+default_positive = ""
+default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast, monochrome"

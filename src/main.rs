@@ -2,7 +2,8 @@ use std::{path, io::Write, vec, os::unix::prelude::PermissionsExt, time::Duratio
 
 use anyhow::{Result, bail, Context};
 
-use futures::prelude::*;
+use config::IrcConfig;
+use futures::{prelude::*, stream::FuturesUnordered};
 use irc::client::prelude::*;
 use log::{info, warn, error, debug, trace};
 use reqwest::RequestBuilder;
@@ -577,8 +578,14 @@ pub async fn upload_images(images: Vec<Vec<u8>>) -> Result<String> {
     Ok(urls.join(" "))
 }
 
-async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
-    let config = Config::load(path::Path::new("irc.toml")).context("failed to load irc.toml")?;
+async fn irc_client(config: IrcConfig, dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
+   let config: Config = Config {
+    server: Some(config.server),
+    port: Some(config.port),
+    nickname: Some(config.nick),
+    channels: config.channels,
+    ..Config::default()
+   };
     let mut client = Client::from_config(config).await.context("failed to connect to IRC")?;
     client.identify().context("failed to identify to IRC")?;
 
@@ -595,7 +602,8 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                 continue;
             }
             tokio::spawn(async move {
-                if let Some(command) = msg.strip_prefix('!') {
+                let command_prefix = format!("!{}", config::get().command_prefix);
+                if let Some(command) = msg.strip_prefix(&command_prefix) {
                     let command = command.splitn(2, ' ').collect::<Vec<_>>();
                     let answer = match command[0] {
                         "dream" => Some(handle_dream(&target, &nickname, command[1], &mut dispatcher).await),
@@ -654,15 +662,12 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
 async fn main() -> Result<()> {
     env_logger::init();
     let (dispatcher_tx, dispatcher_rx) = mpsc::channel(32);
-    let run_as_dev = std::env::var("RUN_AS_DEV").is_ok();
 
-    // Start foreground tasks.
+    // Start background tasks.
     let dispatcher = dispatcher(dispatcher_rx);
-    let irc_client = if run_as_dev {
-        pending().boxed()
-    } else {
-        irc_client(dispatcher_tx.clone()).boxed()
-    };
+    let mut irc_clients = config::get().irc.iter().map(
+        |config| irc_client(config.clone(), dispatcher_tx.clone())
+    ).collect::<FuturesUnordered<_>>();
     let discord = discord::client(dispatcher_tx.clone());
 
     // Await all futures.
@@ -670,7 +675,7 @@ async fn main() -> Result<()> {
         err = dispatcher => {
             bail!("Dispatcher failed: {:?}", err);
         },
-        err = irc_client => {
+        Some(err) = irc_clients.next() => {
             bail!("IRC client failed: {:?}", err);
         },
         err = discord => {
