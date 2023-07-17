@@ -1,4 +1,4 @@
-[build]
+[target.x86_64-linux-gnu]
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
 [target.aarch64-apple-darwin]
