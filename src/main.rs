@@ -630,12 +630,14 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                                     while line.len() > length_limit {
                                         let split = line[..length_limit].rfind(' ').unwrap_or(0);
                                         let (first, second) = line.split_at(split);
+                                        trace!("Sending: {}", first);
                                         sender.send_privmsg(&target, first).expect("failed to send answer");
-                                        tokio::time::sleep(Duration::from_millis(500)).await;
+                                        tokio::time::sleep(Duration::from_millis(1000)).await;
                                         line = second.trim_start();
                                     }
+                                    trace!("Sending: {}", line);
                                     sender.send_privmsg(&target, line).expect("failed to send answer");
-                                    tokio::time::sleep(Duration::from_millis(500)).await;
+                                    tokio::time::sleep(Duration::from_millis(1000)).await;
                                 }
                             },
                             Err(e) => {
@@ -645,7 +647,7 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
                                     for line in els {
                                         error!("Error: {}", line);
                                         sender.send_privmsg(&nickname, line).expect("failed to send error message");
-                                        tokio::time::sleep(Duration::from_millis(500)).await;
+                                        tokio::time::sleep(Duration::from_millis(1000)).await;
                                     }
                                 } else {
                                     error!("Error: {e:?}");

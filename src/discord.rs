@@ -1,7 +1,5 @@
-
-
 use anyhow::{Context as anyhowCtx, bail};
-use log::{info, error};
+use log::{trace, info, error};
 
 use serenity::{prelude::*, async_trait, model::{prelude::{*, command::{Command, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}}}};
 use tokio::sync::mpsc;
@@ -25,6 +23,7 @@ impl Handler {
     async fn handle_dream(&self, ctx: &Context, command: &ApplicationCommandInteraction, dream: &str) -> anyhow::Result<()> {
         // Deferring the response here is important, because the completion can take a while.
         // If we don't defer, Discord will time us out.
+        trace!("Deferring response");
         command.defer(&ctx.http).await?;
 
         let parsed = gpt::prompt_completion(
@@ -41,8 +40,10 @@ impl Handler {
     }
 
     async fn dispatch(&self, ctx: &Context, command: &ApplicationCommandInteraction, parsed: BackendCommand, was_deferred: bool) -> anyhow::Result<()> {
+        trace!("Dispatching command: {:?}", parsed);
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.dispatcher.send(QueuedCommand { command: parsed.clone(), sender: tx }).await?;
+        trace!("Responding to command");
         // Create an interaction response to let the user know we're working on it.
         // Deferred won't work here; it takes too long.
         let status = format!("Dreaming about `{}`, style `{}`", trim_string(&parsed.linguistic_prompt, 900), trim_string(&parsed.supporting_prompt, 500));
