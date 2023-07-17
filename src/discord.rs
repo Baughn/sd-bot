@@ -1,7 +1,7 @@
 use anyhow::{Context as anyhowCtx, bail};
 use log::{trace, info, error};
 
-use serenity::{prelude::*, async_trait, model::{prelude::{*, command::{Command, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}}}};
+use serenity::{prelude::*, async_trait, model::prelude::{*, command::{Command, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}}};
 use tokio::sync::mpsc;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -122,12 +122,12 @@ impl EventHandler for Handler {
                     // - We've responded with a result message.
                     //
                     // In general we just ignore errors in this error handler, because there's nothing we can do.
-                    if let Ok(_) = command.create_interaction_response(&ctx.http, |message| {
+                    if command.create_interaction_response(&ctx.http, |message| {
                         message.kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|message| {
                                     message.content(format!("Error: {}", e))
                                 })
-                    }).await {
+                    }).await.is_ok() {
                         // We hadn't responded yet.
                     } else if let Err(err_err) = command.create_followup_message(&ctx.http, |message| {
                         message.content(format!("Error: {}", e))
@@ -142,20 +142,22 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("Connected as {}", ready.user.name);
+        let run_as_dev = std::env::var("RUN_AS_DEV").is_ok();
+        let cname = |suffix: &str| if run_as_dev { format!("dev-{}", suffix) } else { suffix.to_string() };
 
         let commands = Command::set_global_application_commands(&ctx.http, |c| {
             c.create_application_command(|c| {
-                c.name("dream")
+                c.name(cname("dream"))
                  .description("Dream an excellent dream")
                  .create_option(|o| {
-                    o.name("prompt")
+                    o.name(cname("prompt"))
                      .description("The dream to dream")
                      .kind(CommandOptionType::String)
                      .required(true)
                  })
             })
              .create_application_command(|c| {
-                c.name("prompt")
+                c.name(cname("prompt"))
                  .description("Generate using raw prompt")
                  .create_option(|o| {
                     o.name("prompt")

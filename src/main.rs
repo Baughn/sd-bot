@@ -1,9 +1,9 @@
-use std::{path, io::{Write}, vec, os::unix::prelude::PermissionsExt, time::Duration, future::pending, pin::Pin, collections::HashMap};
+use std::{path, io::Write, vec, os::unix::prelude::PermissionsExt, time::Duration, future::pending, pin::Pin};
 
 use anyhow::{Result, bail, Context};
 
-use futures::{prelude::*};
-use irc::{client::prelude::*};
+use futures::prelude::*;
+use irc::client::prelude::*;
 use log::{info, warn, error, debug, trace};
 use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 
+mod config;
 mod discord;
 mod gpt;
 
@@ -331,21 +332,6 @@ async fn dispatch(command: &BackendCommand) -> Result<CommandResult> {
 
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct BotConfig {
-    aliases: HashMap<String, String>,
-    models: HashMap<String, BotModelConfig>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct BotModelConfig {
-    workflow: String,
-    baseline: String,
-    refiner: String,
-    default_positive: String,
-    default_negative: String,
-}
-
 // Builds a query string for the backend.
 // Since the backend is ComfyUI, this is a bit of a pain. We need to:
 // - Load the model config from models.json. This can fail, if the model doesn't exist.
@@ -354,8 +340,7 @@ struct BotModelConfig {
 // - Confirm that the result is valid JSON.
 // - Take the text, and pass it to /prompt as POST data.
 fn build_query(batch_size: u32, command: BackendCommand) -> Result<RequestBuilder> {
-    let config = std::fs::read_to_string("config.json").context("failed to read config.json")?;
-    let config: BotConfig = serde_json::from_str(&config).context("failed to parse config.json")?;
+    let config = config::get();
     // First, check for aliases.
     let model_name = config.aliases.get(&command.model_name).cloned().unwrap_or(command.model_name.clone());
     // Then, load the model config.
@@ -668,19 +653,28 @@ async fn irc_client(dispatcher: mpsc::Sender<QueuedCommand>) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-
     let (dispatcher_tx, dispatcher_rx) = mpsc::channel(32);
+    let run_as_dev = std::env::var("RUN_AS_DEV").is_ok();
+
+    // Start foreground tasks.
+    let dispatcher = dispatcher(dispatcher_rx);
+    let irc_client = if run_as_dev {
+        pending().boxed()
+    } else {
+        irc_client(dispatcher_tx.clone()).boxed()
+    };
+    let discord = discord::client(dispatcher_tx.clone());
 
     // Await all futures.
     tokio::select! {
-        err = dispatcher(dispatcher_rx) => {
+        err = dispatcher => {
             bail!("Dispatcher failed: {:?}", err);
         },
-        irc = irc_client(dispatcher_tx.clone()) => {
-            bail!("IRC client failed: {:?}", irc);
+        err = irc_client => {
+            bail!("IRC client failed: {:?}", err);
         },
-        discord = discord::client(dispatcher_tx.clone()) => {
-            bail!("Discord client failed: {:?}", discord);
+        err = discord => {
+            bail!("Discord client failed: {:?}", err);
         },
     }
 }
