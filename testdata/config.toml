@@ -1,0 +1,17 @@
+command_prefix = "!"
+
+[[irc]]
+server = "irc.example.com"
+port = 6667
+nick = "bot"
+channels = ["#bot"]
+
+[aliases]
+foo = "bar"
+
+[models.foo]
+workflow = "1"
+baseline = "2"
+refiner = "3"
+default_positive = "4"
+default_negative = "5"
