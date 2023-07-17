@@ -1,15 +1,15 @@
-command_prefix = "dev-"
+command_prefix = ""
 
 [[irc]]
 server = "irc.rizon.net"
 port = 6697
-nick = "GANBot-dev"
-channels = ["#nanobot"]
+nick = "GANBot"
+channels = ["#nanobot", "#nanoha", "#dess"]
 
 [[irc]]
 server = "irc.libera.chat"
 port = 6697
-nick = "GANBot-dev"
+nick = "GANBot"
 channels = ["#questionablebotting"]
 
 [aliases]
