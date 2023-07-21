@@ -3,16 +3,17 @@
 
 use std::{fmt::Debug, sync::Arc, pin::Pin, f32::NEG_INFINITY};
 
-use anyhow::{Result, Context, bail};
+use anyhow::{Result, Context, bail, Ok};
 use async_stream::try_stream;
 use futures::{StreamExt, Stream, channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded}, SinkExt, stream::{empty, FusedStream}, select, FutureExt};
 use log::{info, debug, trace, warn};
 use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
 use tokio::sync::{RwLock};
+use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 
-use crate::{config::{BotConfig, BotConfigModule}, gpt::GPTPromptGeneratorModule};
+use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule};
 
 /// generate() is the entry point for the generator.
 /// It returns a stream of these.
@@ -382,9 +383,89 @@ impl ImageGeneratorModule {
         Ok(generator)
     }
 
+    /// Generates a single batch of images.
+    async fn generate_batch(backend: &BotBackend, request: RequestBuilder) -> Result<Vec<JpegBlob>> {
+        #[derive(Deserialize)]
+        struct ComfyUIResponse {
+            prompt_id: String,
+            #[allow(dead_code)]
+            number: u32,
+        }
+
+        let response = request.send().await.context("failed to send request")?;
+        let text = response.text().await.context("failed to read response")?;
+        trace!("Response: {}", text);
+        let parsed = serde_json::from_str::<ComfyUIResponse>(&text).context("failed to parse response")?;
+        let prompt_id = parsed.prompt_id;
+        debug!("Got prompt ID {}", prompt_id);
+        // Now, we need to poll the history endpoint until it's done.
+        // We limit the traffic by reading the websocket, only polling when it update or if
+        // it's been a second.
+        let mut filenames = None;
+        let mut ws_client = ws::connect_async(format!("ws://{}:{}/ws?clientId={}", backend.host, backend.port, prompt_id)).await.context("failed to connect to websocket")?.0;
+        for _ in 0..30 {
+            select! {
+                msg = ws_client.next() => {
+                    trace!("Got websocket message: {:?}", msg);
+                    // Something happened, so we should poll the history endpoint.
+                    // We'll do that below.
+                },
+                _ = futures_time::task::sleep(futures_time::time::Duration::from_secs(30)).fuse() => {
+                    warn!("Websocket sleep timed out");
+                    // Really this should never happen, but try to recover anyway.
+                },
+            };
+            trace!("Polling history");
+            let client = reqwest::Client::new();
+            let history: serde_json::Value = client.get(format!("http://{}:{}/history/{}", backend.host, backend.port, prompt_id))
+                .send()
+                .await
+                .context("failed to poll history")?
+                .json().await.context("failed to parse history")?;
+            // If the history is empty, we're not done yet.
+            if history.as_object().map(|o| o.is_empty()).unwrap_or(false) {
+                continue;
+            }
+            // Otherwise, we're done.
+            trace!("History: {:?}", history);
+            // Extract the filenames from the history; these are the images we want.
+            // They're at history[prompt_id].outputs.<number>.images[<index>].filename.
+            let outputs = history.get(prompt_id)
+                .and_then(|o| o.get("outputs")).context("history missing outputs")?;
+            let outputs = outputs.as_object().context("outputs not an object")?;
+            // This should just contain a single key, which is the number. We only care about the value.
+            let suboutput = outputs.iter().next().context("outputs empty")?.1;
+            let images = suboutput.get("images").context("suboutput missing images")?;
+            let images = images.as_array().context("images not an array")?;
+            filenames = images.iter().map(|i| {
+                let filename = i.get("filename")?;
+                let filename = filename.as_str()?;
+                Some(filename.to_owned())
+            }).collect::<Option<Vec<_>>>();
+            trace!("Got {} images", filenames.as_ref().map(|v| v.len()).unwrap_or(0));
+            break;
+        }
+        // If we didn't get any filenames, we timed out.
+        let filenames = filenames.ok_or_else(|| anyhow::anyhow!("timed out waiting for images"))?;
+        // Now, we need to download the images.
+        let client = reqwest::Client::new();
+        let mut final_images = Vec::new();
+        for filename in filenames {
+            let image = client.get(format!("http://{}:{}/view", backend.host, backend.port))
+                .query(&[("filename", filename)])
+                .send()
+                .await
+                .context("failed to download image")?
+                .bytes().await.context("failed to read image")?;
+            final_images.push(image.into());
+        }
+
+        Ok(final_images)
+    } 
+
     /// Runs the generator loop for a single request.
     /// Locks self for an instant at startup.
-    pub async fn do_generate(&self, request: ParsedRequest) -> impl FusedStream + Stream<Item = GenerationEvent> {
+    async fn do_generate(&self, request: ParsedRequest) -> impl FusedStream + Stream<Item = GenerationEvent> {
         let config = {
             self.0.read().await.config.snapshot().await
         };
@@ -398,82 +479,18 @@ impl ImageGeneratorModule {
                 let percent = 100.0 * (1.0 - (remaining as f64 / request.count as f64));
                 yield GenerationEvent::Generating(percent as u32);
 
-                #[derive(Deserialize)]
-                struct ComfyUIResponse {
-                    prompt_id: String,
-                    #[allow(dead_code)]
-                    number: u32,
-                }
                 let batch_size = std::cmp::min(remaining, request.max_batch_size());
-                let request = request.build_query(&config, batch_size, seed_offset)?;
+
+                let retry_strategy = ExponentialBackoff::from_millis(50).max_delay(std::time::Duration::from_secs(2)).take(5);
+                let images = Retry::spawn(retry_strategy, || async {
+                    let request = request.build_query(&config, batch_size, seed_offset)?;
+                    Self::generate_batch(backend, request).await
+                }).await.context("failed to generate batch")?;
+
+                final_images.extend(images); 
+
                 remaining -= batch_size;
                 seed_offset += batch_size;
-                let response = request.send().await.context("failed to send request")?;
-                let text = response.text().await.context("failed to read response")?;
-                trace!("Response: {}", text);
-                let parsed = serde_json::from_str::<ComfyUIResponse>(&text).context("failed to parse response")?;
-                let prompt_id = parsed.prompt_id;
-                debug!("Got prompt ID {}", prompt_id);
-                // Now, we need to poll the history endpoint until it's done.
-                // We limit the traffic by reading the websocket, only polling when it update or if
-                // it's been a second.
-                let mut filenames = None;
-                let mut ws_client = ws::connect_async(format!("ws://{}:{}/ws?clientId={}", backend.host, backend.port, prompt_id)).await.context("failed to connect to websocket")?.0;
-                for _ in 0..30 {
-                    select! {
-                        msg = ws_client.next() => {
-                            trace!("Got websocket message: {:?}", msg);
-                            // Something happened, so we should poll the history endpoint.
-                            // We'll do that below.
-                        },
-                        _ = futures_time::task::sleep(futures_time::time::Duration::from_secs(30)).fuse() => {
-                            warn!("Websocket sleep timed out");
-                            // Really this should never happen, but try to recover anyway.
-                        },
-                    };
-                    trace!("Polling history");
-                    let client = reqwest::Client::new();
-                    let history: serde_json::Value = client.get(format!("http://{}:{}/history/{}", backend.host, backend.port, prompt_id))
-                        .send()
-                        .await
-                        .context("failed to poll history")?
-                        .json().await.context("failed to parse history")?;
-                    // If the history is empty, we're not done yet.
-                    if history.as_object().map(|o| o.is_empty()).unwrap_or(false) {
-                        continue;
-                    }
-                    // Otherwise, we're done.
-                    trace!("History: {:?}", history);
-                    // Extract the filenames from the history; these are the images we want.
-                    // They're at history[prompt_id].outputs.<number>.images[<index>].filename.
-                    let outputs = history.get(prompt_id)
-                        .and_then(|o| o.get("outputs")).context("history missing outputs")?;
-                    let outputs = outputs.as_object().context("outputs not an object")?;
-                    // This should just contain a single key, which is the number. We only care about the value.
-                    let suboutput = outputs.iter().next().context("outputs empty")?.1;
-                    let images = suboutput.get("images").context("suboutput missing images")?;
-                    let images = images.as_array().context("images not an array")?;
-                    filenames = images.iter().map(|i| {
-                        let filename = i.get("filename")?;
-                        let filename = filename.as_str()?;
-                        Some(filename.to_owned())
-                    }).collect::<Option<Vec<_>>>();
-                    trace!("Got {} images", filenames.as_ref().map(|v| v.len()).unwrap_or(0));
-                    break;
-                }
-                // If we didn't get any filenames, we timed out.
-                let filenames = filenames.ok_or_else(|| anyhow::anyhow!("timed out waiting for images"))?;
-                // Now, we need to download the images.
-                let client = reqwest::Client::new();
-                for filename in filenames {
-                    let image = client.get(format!("http://{}:{}/view", backend.host, backend.port))
-                        .query(&[("filename", filename)])
-                        .send()
-                        .await
-                        .context("failed to download image")?
-                        .bytes().await.context("failed to read image")?;
-                    final_images.push(image.into());
-                }
             }
             let completed_request = CompletedRequest {
                 base: request,
