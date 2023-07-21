@@ -1,11 +1,11 @@
-use std::{time::Duration};
+use std::time::Duration;
 
 use anyhow::{Result, bail, Context, Ok};
 use irc::client::prelude::*;
 use log::{info, debug, trace, warn};
 use tokio_stream::StreamExt;
 
-use crate::{config::{IrcConfig}, generator::{UserRequest}, BotContext, utils};
+use crate::{config::IrcConfig, generator::UserRequest, BotContext, utils};
 
 
 pub struct IrcTask {

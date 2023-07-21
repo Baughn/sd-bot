@@ -1,4 +1,4 @@
-use std::{io::Write};
+use std::io::Write;
 
 use anyhow::{Result, bail, Context};
 use log::trace;
@@ -6,7 +6,7 @@ use openai_api_rs::v1::chat_completion::{ChatCompletionRequest, self};
 use serde::Deserialize;
 
 
-use crate::{config::{BotConfigModule}, utils};
+use crate::{config::BotConfigModule, utils};
 
 // This is what we ask GPT-4 to generate.
 #[derive(Debug, Deserialize)]

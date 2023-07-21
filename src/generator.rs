@@ -9,7 +9,7 @@ use futures::{StreamExt, Stream, channel::mpsc::{UnboundedReceiver, UnboundedSen
 use log::{info, debug, trace, warn};
 use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
-use tokio::sync::{RwLock};
+use tokio::sync::RwLock;
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 

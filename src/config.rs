@@ -5,7 +5,7 @@
 // Well, panic actually. But then it'll restart.
 
 use std::{collections::HashMap, path::Path, sync::Arc};
-use std::fmt::{Debug};
+use std::fmt::Debug;
 
 use anyhow::{Context, Result};
 use futures::StreamExt;

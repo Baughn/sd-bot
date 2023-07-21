@@ -2,13 +2,13 @@
 
 use anyhow::{Result, bail, Context};
 
-use config::{BotConfigModule};
+use config::BotConfigModule;
 use futures::{prelude::*, stream::FuturesUnordered};
 use generator::ImageGeneratorModule;
-use log::{info};
+use log::info;
 
 
-use crate::{generator::{UserRequest}, gpt::GPTPromptGeneratorModule, db::DatabaseModule};
+use crate::{generator::UserRequest, gpt::GPTPromptGeneratorModule, db::DatabaseModule};
 
 mod db;
 // mod discord;
@@ -17,29 +17,6 @@ mod generator;
 mod gpt;
 mod irc;
 mod utils;
-
-// async fn dispatch_and_retry(command: QueuedCommand) -> Result<()> {
-//     let retry_strategy = ExponentialBackoff::from_millis(50).max_delay(Duration::from_secs(2)).take(5);
-//     let result = Retry::spawn(retry_strategy, || async {
-//         trace!("Dispatching command: {:?}", command.command);
-//         let result = dispatch(&command.command).await;
-//         if let Err(ref e) = result {
-//             warn!("Failed to dispatch command: {:?}", e);
-//         }
-//         result
-//     }).await;
-//     trace!("Dispatched command: {:?}", command.command);
-//     let result = match result {
-//         Ok(result) => result,
-//         Err(e) => {
-//             CommandResult::Failure(format!("Failed to dispatch command: {:?}", e))
-//         },
-//     };
-//     if let Err(e) = command.sender.send(result) {
-//         error!("Failed to send command result: {:?}", e);
-//     }
-//     Ok(())
-// }
 
 
 #[derive(Clone)]
