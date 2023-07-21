@@ -5,11 +5,11 @@ use serenity::{prelude::*, async_trait, model::prelude::{*, command::{Command, C
 use tokio::sync::mpsc;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{QueuedCommand, BackendCommand, CommandResult, upload_images, gpt};
+use crate::{upload_images, gpt, generator::{UserRequest, ParsedRequest}};
 
 
 struct Handler {
-    dispatcher: mpsc::Sender<QueuedCommand>,
+    dispatcher: mpsc::Sender<UserRequest>,
 }
 
 

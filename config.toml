@@ -1,16 +1,21 @@
-command_prefix = ""
+command_prefix = "dev-"
+
+[backend]
+client_id = "GANBot"
+host = "localhost"
+port = 8188
+webhost = "brage.info"
+webdir = "web"
+webdir_internal = "GAN/ganbot2"
+
+[database]
+path = "ganbot.sqlite3"
 
 [[irc]]
 server = "irc.rizon.net"
 port = 6697
-nick = "GANBot"
-channels = ["#nanobot", "#nanoha", "#dess"]
-
-[[irc]]
-server = "irc.libera.chat"
-port = 6697
-nick = "GANBot"
-channels = ["#questionablebotting"]
+nick = "GANBot-dev"
+channels = ["#nanobot"]
 
 [aliases]
 default = "sdxl_0.9"

@@ -22,3 +22,4 @@ Cargo.lock
 /logs
 /__pycache__
 /prompt-completions.log
+ganbot.sqlite3

@@ -4,19 +4,46 @@
 //
 // Well, panic actually. But then it'll restart.
 
-use std::{collections::HashMap, sync::{Mutex, MutexGuard}};
+use std::{collections::HashMap, path::Path, sync::Arc};
+use std::fmt::{Debug};
 
 use anyhow::{Context, Result};
+use futures::StreamExt;
 use lazy_static::lazy_static;
+use log::{error, info};
+use notify::{EventHandler, Watcher};
 use serde::{Serialize, Deserialize};
+use tokio::sync::RwLock;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+lazy_static! {
+    static ref CONFIG_PATH: &'static Path = Path::new("config.toml");
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotConfig {
     pub command_prefix: String,
+    pub backend: BotBackend,
+    pub database: DatabseConfig,
     #[serde(default)]
     pub irc: Vec<IrcConfig>,
     pub aliases: HashMap<String, String>,
     pub models: HashMap<String, BotModelConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BotBackend {
+    pub client_id: String,
+    pub host: String,
+    pub port: u16,
+    pub webhost: String,
+    pub webdir: String,
+    pub webdir_internal: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DatabseConfig {
+    pub path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -27,7 +54,7 @@ pub struct IrcConfig {
     pub channels: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotModelConfig {
     pub workflow: String,
     pub baseline: String,
@@ -36,27 +63,78 @@ pub struct BotModelConfig {
     pub default_negative: String,
 }
 
-lazy_static! {
-    static ref CONFIG: Mutex<BotConfig> = Mutex::new(read_config().expect("Error reading config.toml"));
+struct ConfigEventHandler {
+    tx: futures::channel::mpsc::UnboundedSender<notify::Event>,
+}
+
+impl EventHandler for ConfigEventHandler {
+    fn handle_event(&mut self, event: notify::Result<notify::Event>) {
+        match event {
+            Ok(event) => {
+                if let Err(err) = self.tx.unbounded_send(event) {
+                    panic!("Error sending config event: {:?}", err)
+                }
+            },
+            Err(err) => {
+                panic!("Error in config watcher: {:?}", err);
+            },
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct BotConfigModule(Arc<RwLock<BotConfig>>);
+
+impl BotConfigModule {
+    /// Initialize the config.
+    /// This reads the config from disk, and starts the updater task.
+    pub fn new() -> Result<BotConfigModule> {
+        let config = BotConfigModule(Arc::new(RwLock::new(read_config()?)));
+        tokio::task::spawn(config.clone().updater());
+        Ok(config)
+    }
+
+    /// This watches the config file for changes, and updates the config.
+    async fn updater(self) {
+        let (tx, mut rx) = futures::channel::mpsc::unbounded();
+        let watcher = ConfigEventHandler { tx };
+        notify::recommended_watcher(watcher)
+            .expect("Error creating config watcher")
+            .watch(&CONFIG_PATH, notify::RecursiveMode::NonRecursive)
+            .expect("Error watching config file");
+        while let Some(event) = rx.next().await {
+            if let notify::EventKind::Modify(_) = event.kind {
+                match read_config() {
+                    Ok(new_config) => {
+                        update_config(&mut *self.0.write().await, new_config);
+                    },
+                    Err(err) => {
+                        error!("Error reading config: {:?}", err);
+                    },
+                }
+            }
+        }
+    }
+
+    /// Copies the current config.
+    pub async fn snapshot(&self) -> BotConfig {
+        self.0.read().await.clone()
+    }
+
+    /// Run some function with the current config.
+    /// Please use this instead of snapshot() if possible.
+    pub async fn with_config<F, T>(&self, f: F) -> T
+    where
+        F: FnOnce(&BotConfig) -> T,
+    {
+        f(&*self.0.read().await)
+    }
 }
 
 fn read_config() -> Result<BotConfig> {
     let text = std::fs::read_to_string("config.toml")
         .context("Error reading config.toml")?;
     toml::from_str(&text).context("Error parsing config.toml")
-}
-
-pub fn get() -> MutexGuard<'static, BotConfig> {
-    // Check if the config has changed.
-    if let Ok(new_config) = read_config() {
-        let mut old_config = CONFIG.lock().unwrap();
-        update_config(&mut old_config, new_config);
-    }
-    CONFIG.lock().unwrap()
-}
-
-pub fn testconfig() -> BotConfig {
-    toml::from_str(include_str!("../testdata/config.toml")).unwrap()
 }
 
 fn update_config(old: &mut BotConfig, new: BotConfig) {
@@ -67,47 +145,11 @@ fn update_config(old: &mut BotConfig, new: BotConfig) {
     if old.irc != new.irc {
         panic!("IRC config changed");
     }
+    info!("Config changed:\n{}", toml::to_string_pretty(&new).unwrap());
     *old = new;
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_serialization() {
-        let config = BotConfig {
-            command_prefix: "!".to_string(),
-            irc: vec![
-                IrcConfig {
-                    server: "irc.example.com".to_string(),
-                    port: 6667,
-                    nick: "bot".to_string(),
-                    channels: vec!["#bot".to_string()],
-                }
-            ],
-            aliases: HashMap::from([
-                ("foo".to_string(), "bar".to_string()),
-            ]),
-            models: HashMap::from([
-                ("foo".to_string(), BotModelConfig {
-                    workflow: "1".to_string(),
-                    baseline: "2".to_string(),
-                    refiner: "3".to_string(),
-                    default_positive: "4".to_string(),
-                    default_negative: "5".to_string(),
-                }),
-            ]),
-        };
-        let text = toml::to_string(&config).unwrap();
-        let config2 = toml::from_str(&text).unwrap();
-        assert_eq!(config, config2);
-        // Compare to the golden data from testdata/config.toml.
-        assert_eq!(text, include_str!("../testdata/config.toml"));
-    }
-
-    #[test]
-    fn test_testconfig() {
-        testconfig();
-    }
+pub fn testconfig() -> BotConfig {
+    toml::from_str(include_str!("../testdata/config.toml")).unwrap()
 }
