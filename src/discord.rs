@@ -136,12 +136,18 @@ impl Handler {
                     // Leave the original message as-is; it has the prompt.
                 },
                 GenerationEvent::Completed(c) => {
-                    // TODO: Implement overview & upscaling/etc. buttons.
-                    //let overview = utils::overview_of_pictures(&c.images)?;
-                    //let all: Vec<Vec<u8>> = std::iter::once(overview).chain(c.images.into_iter()).collect();
-                    //// Send the results to the user.
-                    //let urls = utils::upload_images(&self.context.config, all).await
-                    //    .context("failed to upload images")?;
+                    // Before anything else, let's update the status message.
+                    status_text = format!("Dreamed about `{}`\nGenerated {} images; now uploading", c.base.base.raw, c.images.len());
+                    command.edit_original_interaction_response(&ctx.http, |message| {
+                        message.content(&status_text)
+                    }).await?;
+                    // Create a gallery of the images.
+                    let gallery_geometry = utils::gallery_geometry(c.images.len());
+                    let overview = utils::overview_of_pictures(&c.images)?;
+                    let all: Vec<Vec<u8>> = std::iter::once(overview).chain(c.images.into_iter()).collect();
+                    // Send the results to the user.
+                    let urls = utils::upload_images(&self.context.config, all).await
+                       .context("failed to upload images")?;
 
                     let mut text = vec![
                         format!("Dreams of `{}` | For {}", c.base.base.raw, command.user.mention()),
@@ -151,16 +157,28 @@ impl Handler {
                     if let Some(dream) = c.base.base.dream {
                         text.push(format!("Based on `{}`", dream));
                     }
-                    let urls = utils::upload_images(&self.context.config, c.images).await
-                        .context("failed to upload images")?;
-                    text.extend(urls);
+                    text.push(urls[0].clone());
                     // Create the final message, with:
                     // - One row with a delete, restyle, and retry button.
                     // - NxM rows of upscale buttons (up to 4x4).
                     command.create_followup_message(&ctx.http, |message| {
                         message.content(text.join("\n"))
                             .components(|c| {
-                                c.add_action_row(self.action_buttons.clone())
+                                let mut c = c.add_action_row(self.action_buttons.clone());
+                                // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
+                                for y in 0..gallery_geometry.1 {
+                                    let mut row = CreateActionRow::default();
+                                    for x in 0..gallery_geometry.0 {
+                                        let index = y * gallery_geometry.0 + x + 1;
+                                        row = row.create_button(|b| {
+                                            b.style(ButtonStyle::Primary)
+                                             .label(format!("U{}", index))
+                                             .custom_id(format!("upscale.{}", index))
+                                        }).clone();
+                                    }
+                                    c = c.add_action_row(row);
+                                }
+                                c
                             })
                     }).await.context("Posting pictures")?;
                     // When all is said and done, delete the original message.
@@ -173,12 +191,35 @@ impl Handler {
     }
 
     async fn handle_component(&self, ctx: &Context, component: &MessageComponentInteraction) -> Result<()> {
-        match component.data.custom_id.as_str() {
+        let (command, params) = component.data.custom_id.split_once('.')
+          .unwrap_or((component.data.custom_id.as_str(), ""));
+        match command {
             "delete" => {
                 // Just delete it.
                 // Maybe later we can use a modal to verify.
                 component.message.delete(&ctx.http).await.context("Deleting potentially NSFW message")?;
             },
+            "upscale" => {
+                // TODO: Actually do upscaling.
+                debug!("Upscaling: {:?}", params);
+                // Anyway, this sums up as "Find the url in the message, and replace it with the requested invidual image."
+                let embed = component.message.embeds.first().context("Expected an embed")?;
+                let url = embed.url.as_ref().context("Expected an embed with a url")?;
+                // This should end in ".0.jpg", and we'll replace the 0.
+                if let Some((prefix, suffix)) = url.rsplit_once("0.jpg") {
+                    let new_url = format!("{}{}.jpg", prefix, params);
+                    debug!("Replacing {} with {}", url, new_url);
+                    // Send a new message with the new url.
+                    component.create_interaction_response(&ctx.http, |message| {
+                        message.kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| {
+                                    message.content(new_url)
+                                })
+                    }).await.context("Sending new message")?;
+                } else {
+                    bail!("Expected url to end in 0.jpg"); 
+                }
+            }
             unknown => {
                 bail!("Unknown component: {}", unknown);
             }

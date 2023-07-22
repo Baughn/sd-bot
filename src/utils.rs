@@ -7,6 +7,12 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::config::BotConfigModule;
 
+pub fn gallery_geometry(image_count: usize) -> (u32, u32) {
+    let width = (image_count as f64).sqrt().ceil() as u32;
+    let height = (image_count as f64 / width as f64).ceil() as u32;
+    (width, height)
+}
+
 /// Given a bunch of JPEGs, generates a tiled overview of them.
 /// This is used to 'subtly' encourage people to use the upsize buttons.
 pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
@@ -40,8 +46,7 @@ pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
         let border_color = image::Rgb([border_color[0] as u8, border_color[1] as u8, border_color[2] as u8]);
         // Figure out the size of the overview.
         // We'll try to be square-ish.
-        let width_images = (images.len() as f64).sqrt().ceil() as u32;
-        let height_images = (images.len() as f64 / width_images as f64).ceil() as u32;
+        let (width_images, height_images) = gallery_geometry(images.len());
         let width = sample.width();
         let height = sample.height();
         // We'll add a border between all images, and around the outside.
@@ -149,8 +154,17 @@ pub fn segment_lines(text: &str, length_limit: usize) -> Vec<&str> {
 }
 
 /// Segment a string, discarding all but the first segment.
-pub fn segment_one(text: &str, length_limit: usize) -> &str {
-    segment_lines(text, length_limit).first().unwrap_or(&"")
+/// This can return multiple lines joined by newlines.
+pub fn segment_one(text: &str, length_limit: usize) -> String {
+    let mut ret = Vec::new();
+    let lines = segment_lines(text, length_limit);
+    for line in lines {
+        if ret.len() + line.len() > length_limit {
+            break;
+        }
+        ret.push(line);
+    }
+    ret.join("\n")
 }
 
 pub fn hash(text: &str) -> String {
@@ -178,5 +192,15 @@ mod tests {
     #[test]
     fn test_hash() {
         assert_eq!(hash("hello"), "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f");
+    }
+
+    #[test]
+    fn test_geometry() {
+        for image_count in 1..=64 {
+            let (width, height) = gallery_geometry(image_count);
+            assert!(width * height >= image_count as u32);
+            assert!(width + 1 >= height);
+            assert!(height + 1 >= width);
+        }
     }
 }
