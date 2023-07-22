@@ -33,7 +33,7 @@ pub enum GenerationEvent {
     Completed(CompletedRequest),
     /// Something broke.
     /// The generator has stopped.
-    Error(String),
+    Error(anyhow::Error),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -480,12 +480,11 @@ impl ImageGeneratorModule {
                 yield GenerationEvent::Generating(percent as u32);
 
                 let batch_size = std::cmp::min(remaining, request.max_batch_size());
-
                 let retry_strategy = ExponentialBackoff::from_millis(50).max_delay(std::time::Duration::from_secs(2)).take(5);
                 let images = Retry::spawn(retry_strategy, || async {
-                    let request = request.build_query(&config, batch_size, seed_offset)?;
-                    Self::generate_batch(backend, request).await
-                }).await.context("failed to generate batch")?;
+                    let request = request.build_query(&config, batch_size, seed_offset).context("Failed to build query")?;
+                    Self::generate_batch(backend, request).await.context("Failed to generate batch")
+                }).await.context("Ran out of retries")?;
 
                 final_images.extend(images); 
 
@@ -497,7 +496,7 @@ impl ImageGeneratorModule {
                 images: final_images,
             };
             yield GenerationEvent::Completed(completed_request);
-        }.map(|r| r.unwrap_or_else(|e: anyhow::Error| GenerationEvent::Error(e.to_string())))
+        }.map(|r| r.unwrap_or_else(GenerationEvent::Error))
     }
 
     /// Returns the highest-scoring request in the queue, if any.
@@ -588,7 +587,7 @@ impl ImageGeneratorModule {
             yield GenerationEvent::Parsed(parsed.clone());
 
             self.0.write().await.command_sender.send((parsed.clone(), tx)).await.expect("failed to send command");
-        }.map(|r| r.unwrap_or_else(|e: anyhow::Error| GenerationEvent::Error(e.to_string())))
+        }.map(|r| r.unwrap_or_else(GenerationEvent::Error))
          .chain(rx)
     }
 }

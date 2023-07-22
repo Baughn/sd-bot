@@ -8,7 +8,7 @@ use generator::ImageGeneratorModule;
 use log::info;
 
 
-use crate::{generator::UserRequest, gpt::GPTPromptGeneratorModule, db::DatabaseModule};
+use crate::{generator::{UserRequest, GenerationEvent}, gpt::GPTPromptGeneratorModule, db::DatabaseModule};
 
 mod db;
 // mod discord;
@@ -58,6 +58,9 @@ async fn main() -> Result<()> {
         }).await;
         s.for_each(|e| {
             info!("Smoke-test result: {:?}", e);
+            if let GenerationEvent::Error(e) = e {
+                panic!("Smoke-test error: {}", e);
+            }
             future::ready(())
         }).await;
     }).await?;

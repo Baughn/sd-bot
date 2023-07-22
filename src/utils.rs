@@ -1,10 +1,72 @@
-use std::{os::unix::prelude::PermissionsExt, io::Write};
+use std::{os::unix::prelude::PermissionsExt, io::{Write, Cursor}};
 
 use anyhow::{bail, Result, Context};
+use image::GenericImage;
 use log::{info, debug};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::config::BotConfigModule;
+
+/// Given a bunch of JPEGs, generates a tiled overview of them.
+/// This is used to 'subtly' encourage people to use the upsize buttons.
+pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
+    const BORDER: u32 = 8;
+    // Parse the JPEGs.
+    let images = jpegs.iter().map(|jpeg| {
+        image::load_from_memory(jpeg).context("failed to parse JPEG")
+        .map(|image| image.to_rgb8())
+    }).collect::<Result<Vec<_>>>()
+        .context("failed to parse JPEGs")?;
+    if let Some(sample) = images.first() {
+        // Decide on a color for the border.
+        // We'll use the average color of all the images.
+        let mut border_color = [0, 0, 0];
+        for image in images.iter() {
+            let (width, height) = (image.width(), image.height());
+            let mut sum = [0, 0, 0];
+            for rgb in image.pixels() {
+                sum[0] += rgb.0[0] as u64;
+                sum[1] += rgb.0[1] as u64;
+                sum[2] += rgb.0[2] as u64;
+            }
+            let count = width as u64 * height as u64;
+            border_color[0] += sum[0] / count;
+            border_color[1] += sum[1] / count;
+            border_color[2] += sum[2] / count;
+        }
+        border_color[0] /= images.len() as u64;
+        border_color[1] /= images.len() as u64;
+        border_color[2] /= images.len() as u64;
+        let border_color = image::Rgb([border_color[0] as u8, border_color[1] as u8, border_color[2] as u8]);
+        // Figure out the size of the overview.
+        // We'll try to be square-ish.
+        let width_images = (images.len() as f64).sqrt().ceil() as u32;
+        let height_images = (images.len() as f64 / width_images as f64).ceil() as u32;
+        let width = sample.width();
+        let height = sample.height();
+        // We'll add a border between all images, and around the outside.
+        let overview_width = width * width_images + BORDER * (width_images + 1);
+        let overview_height = height * height_images + BORDER * (height_images + 1);
+        let mut overview = image::RgbImage::new(overview_width, overview_height);
+        // Set the background color.
+        for pixel in overview.pixels_mut() {
+            *pixel = border_color;
+        }
+        // Copy the images into the overview.
+        for (i, image) in images.iter().enumerate() {
+            let x = (i as u32 % width_images) * width + BORDER * (i as u32 % width_images + 1);
+            let y = (i as u32 / width_images) * height + BORDER * (i as u32 / width_images + 1);
+            overview.copy_from(image, x, y).context("failed to copy image")?;
+        }
+        // Encode the overview as JPEG.
+        let mut output = Vec::new();
+        overview.write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::Jpeg(90))
+            .context("failed to encode JPEG")?;
+        Ok(output)
+    } else {
+        bail!("No images");
+    }
+}
 
 pub async fn upload_images(config: &BotConfigModule, images: Vec<Vec<u8>>) -> Result<Vec<String>> {
     let uuid = uuid::Uuid::new_v4();

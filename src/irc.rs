@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{Result, bail, Context, Ok};
 use irc::client::prelude::*;
-use log::{info, debug, trace, warn};
+use log::{info, debug, trace, warn, error};
 use tokio_stream::StreamExt;
 
 use crate::{config::IrcConfig, generator::UserRequest, BotContext, utils};
@@ -59,9 +59,14 @@ impl IrcTask {
                         let nick = nick.to_owned();
                         let cmd = cmd.to_owned();
                         let params = params.trim().to_owned();
-                        tokio::task::spawn(
-                            Self::handle_command(context, sender, target, nick, cmd, params)
-                        );
+                        tokio::task::spawn( async move {
+                            if let Err(e) = Self::handle_command(&context, &sender, &target, &nick, &cmd, &params).await {
+                                error!("Error while handling command: {}", e);
+                                if let Err(e) = send(&sender, &target, &format!("{}: Error: {}", nick, e)).await {
+                                    error!("Error while sending error: {}", e);
+                                }
+                            }
+                        });
                     } else {
                         warn!("Received command without parameters: {}", msg);
                     }
@@ -71,18 +76,18 @@ impl IrcTask {
         bail!("IRC client exited");
     }
 
-    async fn handle_command(context: BotContext, sender: Sender, target: String, nick: String, cmd: String, params: String) -> Result<()> {
-        let request = match cmd.as_ref() {
+    async fn handle_command(context: &BotContext, sender: &Sender, target: &str, nick: &str, cmd: &str, params: &str) -> Result<()> {
+        let request = match cmd {
             "dream" => UserRequest {
-                user: nick.clone(),
-                dream: Some(params.clone()),
-                raw: params,
+                user: nick.into(),
+                dream: Some(params.into()),
+                raw: params.into(),
                 source: crate::generator::Source::Irc,
             },
             "prompt" => UserRequest {
-                user: nick.clone(),
+                user: nick.into(),
                 dream: None,
-                raw: params,
+                raw: params.into(),
                 source: crate::generator::Source::Irc,
             },
             _ => return Ok(()),
@@ -92,24 +97,25 @@ impl IrcTask {
             trace!("Event: {:?}", event);
             match event {
                 crate::generator::GenerationEvent::Completed(c) => {
+                    let overview = utils::overview_of_pictures(&c.images)?;
+                    let all: Vec<Vec<u8>> = std::iter::once(overview).chain(c.images.into_iter()).collect();
                     // Send the results to the user.
-                    let urls = utils::upload_images(&context.config, c.images).await
-                        .context("failed to upload images")?
-                        .join(" ");
-                    send(&sender, &target, &format!("{}: {}", nick, urls)).await?;
+                    let urls = utils::upload_images(&context.config, all).await
+                        .context("failed to upload images")?;
+                    send(sender, target, &format!("{}: {}", nick, urls[0])).await?;
                 },
                 crate::generator::GenerationEvent::Error(e) => {
-                    send(&sender, &target, &format!("{}: Error: {}", nick, e)).await?;
+                    send(sender, target, &format!("{}: Error: {}", nick, e)).await?;
                 },
                 crate::generator::GenerationEvent::GPTCompleted(req) => {
-                    send(&sender, &target, &format!("{}: Dreaming about `{}`", nick, req.raw)).await?;
+                    send(sender, target, &format!("{}: Dreaming about `{}`", nick, req.raw)).await?;
                 },
                 crate::generator::GenerationEvent::Parsed(_) => {
                     // Ignoring this one.
                 },
                 crate::generator::GenerationEvent::Queued(n) => {
                     if n >= 3 {
-                        send(&sender, &target, &format!("{}: You're in position {} in the queue.", nick, n)).await?;
+                        send(sender, target, &format!("{}: You're in position {} in the queue.", nick, n)).await?;
                     }
                 },
                 crate::generator::GenerationEvent::Generating(_) => {
