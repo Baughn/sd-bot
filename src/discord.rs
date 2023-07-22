@@ -1,7 +1,8 @@
 use anyhow::{Context as anyhowCtx, bail, Result};
-use log::{trace, info, error};
+use log::{trace, info, error, debug};
 
-use serenity::{prelude::*, async_trait, model::{prelude::{*, command::{Command, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, component::ButtonStyle}, interactions::message_component::ActionRow}, builder::CreateActionRow};
+use serenity::{prelude::*, async_trait, model::{prelude::{*, command::{Command, CommandOptionType}, application_command::{ApplicationCommandInteraction, CommandDataOptionValue}, component::ButtonStyle, modal::ModalSubmitInteraction, message_component::MessageComponentInteraction}}, builder::CreateActionRow};
+
 use tokio_stream::StreamExt;
 
 use crate::{BotContext, utils, generator::{self, GenerationEvent}};
@@ -16,6 +17,7 @@ pub struct DiscordTask {
 struct Handler {
     context: BotContext,
     action_buttons: CreateActionRow,
+    yes_no_buttons: CreateActionRow,
 }
 
 impl DiscordTask {
@@ -88,11 +90,8 @@ impl Handler {
         // display event data such as queue #s.
         // Once the generation is complete, we send a followup message with the
         // results.
-        command.create_interaction_response(&ctx.http, |message| {
-            message.kind(InteractionResponseType::ChannelMessageWithSource)
-                    .interaction_response_data(|message| {
-                        message.content(&status_text)
-                    })
+        command.edit_original_interaction_response(&ctx.http, |message| {
+            message.content(&status_text)
         }).await.context("Creating initial response")?;
         
 
@@ -163,13 +162,27 @@ impl Handler {
                             .components(|c| {
                                 c.add_action_row(self.action_buttons.clone())
                             })
-                    }).await?;
+                    }).await.context("Posting pictures")?;
                     // When all is said and done, delete the original message.
-                    command.delete_original_interaction_response(&ctx.http).await?;
+                    command.delete_original_interaction_response(&ctx.http).await.context("Deleting original message")?;
                 },
             }
         }
 
+        Ok(())
+    }
+
+    async fn handle_component(&self, ctx: &Context, component: &MessageComponentInteraction) -> Result<()> {
+        match component.data.custom_id.as_str() {
+            "delete" => {
+                // Just delete it.
+                // Maybe later we can use a modal to verify.
+                component.message.delete(&ctx.http).await.context("Deleting potentially NSFW message")?;
+            },
+            unknown => {
+                bail!("Unknown component: {}", unknown);
+            }
+        };
         Ok(())
     }
 
@@ -192,8 +205,22 @@ impl Handler {
             })
             .clone();
 
+        let yes_no_buttons = CreateActionRow::default()
+            .create_button(|b| {
+                b.style(ButtonStyle::Danger)
+                 .label("Yes")
+                 .custom_id("yes")
+            })
+            .create_button(|b| {
+                b.style(ButtonStyle::Primary)
+                 .label("No")
+                 .custom_id("no")
+            })
+            .clone();
+
         Self {
             action_buttons,
+            yes_no_buttons,
             context,
         }
     }
@@ -202,13 +229,12 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-
-        if let Interaction::ApplicationCommand(command) = interaction {
-            info!("Received command: {:?}", command);
-
-            match self.handle_command(&ctx, &command).await {
-                Ok(_) => (),
-                Err(e) => {
+        match interaction {
+            // Dream and prompt are the same command, but with different parameters.
+            Interaction::ApplicationCommand(command) => {
+                info!("Received command: {:?}", command);
+                let _ = command.defer(&ctx.http).await;
+                if let Err(e) = self.handle_command(&ctx, &command).await {
                     error!("Error handling command: {:?}", e);
                     let e = format!("{:#}", e);
                     let e = utils::segment_lines(&e, 1800)[0];
@@ -233,9 +259,38 @@ impl EventHandler for Handler {
                         error!("Error sending error message: {:?}", err_err);
                     }
                 }
+            },
+            // Action buttons; Delete, Restyle, Retry.
+            // Delete... deletes. The other two actually just invoke /prompt again!
+            Interaction::MessageComponent(component) => {
+                info!("Received component interaction: {:?}", component);
+                let _ = component.defer(&ctx.http);
+                if let Err(e) = self.handle_component(&ctx, &component).await {
+                    error!("Error handling component: {:?}", e);
+                    let e = format!("{:#}", e);
+                    let e = utils::segment_lines(&e, 1800)[0];
+                    // In this case we can always use an interaction response. (Ephemeral)
+                    if let Err(err_err) = component.create_interaction_response(&ctx.http, |message| {
+                        message.kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| {
+                                    message.content(format!("Error: {}", e)).ephemeral(true)
+                                })
+                    }).await {
+                        // We couldn't send a followup.
+                        error!("Error sending error message: {:?}", err_err);
+                    }
+                }
+            }
+
+            // Anything else, we don't care.
+            unknown => {
+                debug!("Unknown interaction: {:?}", unknown);
             }
         }
     }
+
+
+
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("Connected as {}", ready.user.name);
