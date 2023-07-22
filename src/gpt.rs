@@ -66,7 +66,7 @@ impl GPTPromptGeneratorModule {
             top_p: None,
             n: None,
             stream: Some(false),
-            stop: Some(vec!["\n".to_string()]),
+            stop: Some(vec!["\n\n".to_string(), "}".to_string()]),
             max_tokens: Some(300),
             presence_penalty: None,
             frequency_penalty: None,

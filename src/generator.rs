@@ -151,6 +151,7 @@ impl ParsedRequest {
         // TODO: Load some of this from config.json.
         let mut parsed = ParsedRequest {
             // Default seed is the POSIX timestamp.
+            base: request.clone(),
             seed: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as u32,
             ..Default::default()
         };

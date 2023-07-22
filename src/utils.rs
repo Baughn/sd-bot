@@ -148,6 +148,11 @@ pub fn segment_lines(text: &str, length_limit: usize) -> Vec<&str> {
     ).collect()
 }
 
+/// Segment a string, discarding all but the first segment.
+pub fn segment_one(text: &str, length_limit: usize) -> &str {
+    segment_lines(text, length_limit).first().unwrap_or(&"")
+}
+
 pub fn hash(text: &str) -> String {
     let mut hasher = blake3::Hasher::new();
     hasher.update(text.as_bytes());

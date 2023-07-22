@@ -11,7 +11,7 @@ use log::info;
 use crate::{generator::{UserRequest, GenerationEvent}, gpt::GPTPromptGeneratorModule, db::DatabaseModule};
 
 mod db;
-// mod discord;
+mod discord;
 mod config;
 mod generator;
 mod gpt;
@@ -48,22 +48,22 @@ async fn main() -> Result<()> {
         image_generator: image_generator.clone(),
     };
 
-    // Run smoke-test.
-    tokio::task::spawn(async move {
-        let s = image_generator.generate(UserRequest {
-            user: "warmup".to_owned(),
-            raw: "warmup --steps 1".to_owned(),
-            dream: None,
-            source: generator::Source::Unknown,
-        }).await;
-        s.for_each(|e| {
-            info!("Smoke-test result: {:?}", e);
-            if let GenerationEvent::Error(e) = e {
-                panic!("Smoke-test error: {}", e);
-            }
-            future::ready(())
-        }).await;
-    }).await?;
+    // // Run smoke-test.
+    // tokio::task::spawn(async move {
+    //     let s = image_generator.generate(UserRequest {
+    //         user: "warmup".to_owned(),
+    //         raw: "warmup --steps 1".to_owned(),
+    //         dream: None,
+    //         source: generator::Source::Unknown,
+    //     }).await;
+    //     s.for_each(|e| {
+    //         info!("Smoke-test result: {:?}", e);
+    //         if let GenerationEvent::Error(e) = e {
+    //             panic!("Smoke-test error: {}", e);
+    //         }
+    //         future::ready(())
+    //     }).await;
+    // }).await?;
 
     // Start IRC client(s)
     let mut irc_tasks = config.with_config(|c| {
@@ -75,10 +75,16 @@ async fn main() -> Result<()> {
         .iter_mut().map(|t| t.run())
         .collect::<FuturesUnordered<_>>();
 
+    // Start Discord client
+    let mut discord_task = discord::DiscordTask::new(context.clone())?;
+
     // Await all futures. (Run tasks until one completes, i.e. crashes.)
     tokio::select! {
         err = irc_runners.next() => {
             bail!("IRC client failed: {:?}", err);
+        },
+        err = discord_task.run() => {
+            bail!("Discord client failed: {:?}", err);
         },
     }
 }
