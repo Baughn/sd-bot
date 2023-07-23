@@ -560,7 +560,9 @@ impl EventHandler for Handler {
                     .description("Model")
                     .kind(CommandOptionType::String)
                     .required(false);
-                    for alias in config.aliases.keys() {
+                    let mut aliases = config.aliases.keys().collect::<Vec<_>>();
+                    aliases.sort();
+                    for alias in aliases {
                         o = o.add_string_choice(alias, alias);
                     }
                     o
