@@ -9,7 +9,7 @@ use log::info;
 use rusqlite::Connection;
 use tokio::sync::Mutex;
 
-use crate::{config::BotConfigModule, generator::{CompletedRequest, UserRequest}, utils};
+use crate::{config::BotConfigModule, generator::{CompletedRequest, UserRequest, ParsedRequest}, utils};
 
 struct Database {
     config: BotConfigModule,
@@ -109,5 +109,20 @@ impl DatabaseModule {
         }
 
         Ok(urls)
+    }
+
+    pub async fn get_parameters_for_batch(&self, uuid: &str) -> Result<Option<ParsedRequest>> {
+        let db = self.0.lock().await;
+        let mut stmt = db
+            .conn
+            .prepare("SELECT settings FROM batches WHERE uuid = ?")?;
+        let mut rows = stmt.query([uuid])?;
+        if let Some(row) = rows.next()? {
+            let settings: String = row.get(0).context("failed to get settings")?;
+            let settings: ParsedRequest = serde_json::from_str(&settings).context("failed to parse settings")?;
+            Ok(Some(settings))
+        } else {
+            Ok(None)
+        }
     }
 }

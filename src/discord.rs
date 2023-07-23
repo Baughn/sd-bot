@@ -17,7 +17,7 @@ use serenity::{
 use tokio_stream::StreamExt;
 
 use crate::{
-    generator::{self, GenerationEvent},
+    generator::{self, GenerationEvent, UserRequest},
     utils, BotContext,
 };
 
@@ -66,8 +66,7 @@ impl Handler {
             .await;
         let cmd = command.data.name.trim_start_matches(&cprefix);
         let mention_user = command.user.mention();
-        let mut status_text;
-        let stream = match cmd {
+        let request = match cmd {
             "dream" => {
                 let prompt = command
                     .data
@@ -78,16 +77,12 @@ impl Handler {
                     .as_ref()
                     .context("Expected prompt")?;
                 if let CommandDataOptionValue::String(prompt) = prompt {
-                    status_text = format!("Dreaming based on `{}`", prompt);
-                    self.context
-                        .image_generator
-                        .generate(generator::UserRequest {
-                            user: command.user.to_string(),
-                            raw: prompt.to_string(),
-                            dream: Some(prompt.to_string()),
-                            source: generator::Source::Discord,
-                        })
-                        .await
+                    generator::UserRequest {
+                        user: command.user.to_string(),
+                        raw: prompt.to_string(),
+                        dream: Some(prompt.to_string()),
+                        source: generator::Source::Discord,
+                    }
                 } else {
                     bail!("Expected parameter to be a string");
                 }
@@ -161,26 +156,39 @@ impl Handler {
                 }
 
                 // Now we can generate.
-                status_text = format!("Dreaming about `{}`", raw);
-                self.context
-                    .image_generator
-                    .generate(generator::UserRequest {
-                        user: command.user.to_string(),
-                        raw,
-                        dream: None,
-                        source: generator::Source::Discord,
-                    })
-                    .await
+                generator::UserRequest {
+                    user: command.user.to_string(),
+                    raw,
+                    dream: None,
+                    source: generator::Source::Discord,
+                }
             },
             x => bail!("Unknown command: {}", x),
         };
-        let mut stream = Box::pin(stream);
+
+        let statusbox = command.edit_original_interaction_response(&ctx.http, |f| {
+            f.content("Dreaming...")
+        }).await.context("Creating initial statusbox")?;
+
+        self.do_generate(ctx, statusbox, request, mention_user).await
+    }
+
+    async fn do_generate(&self, ctx: &Context, mut statusbox: Message, request: UserRequest, mention_user: Mention) -> Result<()> {
+        let mut stream = Box::pin(
+            self.context.image_generator.generate(request.clone()).await
+        );
         // When generating, we first create an interaction response in which we
         // display event data such as queue #s.
         // Once the generation is complete, we send a followup message with the
         // results.
-        command
-            .edit_original_interaction_response(&ctx.http, |message| message.content(&status_text))
+        let mut status_text = if let Some(dream) = request.dream {
+            format!("Dreaming based on `{}`", dream)
+        } else {
+            format!("Dreaming about `{}`", request.raw)
+        };
+
+        statusbox
+            .edit(&ctx.http, |message| message.content(&status_text))
             .await
             .context("Creating initial response")?;
 
@@ -193,11 +201,7 @@ impl Handler {
                         c.raw,
                         c.dream.unwrap()
                     );
-                    command
-                        .edit_original_interaction_response(&ctx.http, |message| {
-                            message.content(&status_text)
-                        })
-                        .await?;
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
                 }
                 GenerationEvent::Parsed(_) => (
                     // TODO: Implement this.
@@ -205,11 +209,7 @@ impl Handler {
                 GenerationEvent::Queued(n) => {
                     if n > 0 {
                         status_text.push_str(&format!("\nQueued at position {n}"));
-                        command
-                            .edit_original_interaction_response(&ctx.http, |message| {
-                                message.content(&status_text)
-                            })
-                            .await?;
+                        statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
                     }
                 }
                 GenerationEvent::Generating(percent) => {
@@ -221,20 +221,14 @@ impl Handler {
                         .join("\n");
                     // Add the new Generating line.
                     status_text.push_str(&format!("\nGenerating ({}%)", percent));
-                    command
-                        .edit_original_interaction_response(&ctx.http, |message| {
-                            message.content(&status_text)
-                        })
-                        .await?;
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
                 }
                 GenerationEvent::Error(e) => {
-                    // There was an error. We'll send it as a followup message.
-                    let err = format!("{} Error: {:#}", mention_user, e);
+                    // There was an error.
+                    let err = format!("\n\n{} Error: {:#}", mention_user, e);
                     let err = utils::segment_one(&err, 1800);
-                    command
-                        .create_followup_message(&ctx.http, |message| message.content(err))
-                        .await?;
-                    // Leave the original message as-is; it has the prompt.
+                    status_text.push_str(&err);
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
                 }
                 GenerationEvent::Completed(c) => {
                     // Before anything else, let's update the status message.
@@ -243,11 +237,7 @@ impl Handler {
                         c.base.base.raw,
                         c.images.len()
                     );
-                    command
-                        .edit_original_interaction_response(&ctx.http, |message| {
-                            message.content(&status_text)
-                        })
-                        .await?;
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
 
                     // Add images to the database & upload them.
                     let gallery_geometry = utils::gallery_geometry(c.images.len());
@@ -258,7 +248,7 @@ impl Handler {
                         format!(
                             "Dreams of `{}` | For {}",
                             c.base.base.raw,
-                            command.user.mention()
+                            mention_user
                         ),
                         format!(
                             "Seed {} | {}x{} | {} steps | Aesthetic {} | Guidance {}",
@@ -277,35 +267,31 @@ impl Handler {
                     // Create the final message, with:
                     // - One row with a delete, restyle, and retry button.
                     // - NxM rows of upscale buttons (up to 4x4).
-                    command
-                        .create_followup_message(&ctx.http, |message| {
-                            message.content(text.join("\n")).components(|c| {
-                                let mut c = c.add_action_row(self.action_buttons.clone());
-                                // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
-                                for y in 0..gallery_geometry.1 {
-                                    let mut row = CreateActionRow::default();
-                                    for x in 0..gallery_geometry.0 {
-                                        let index = y * gallery_geometry.0 + x + 1;
-                                        row = row
-                                            .create_button(|b| {
-                                                b.style(ButtonStyle::Primary)
-                                                    .label(format!("U{}", index))
-                                                    .custom_id(format!("upscale.{}", index))
-                                            })
-                                            .clone();
-                                    }
-                                    c = c.add_action_row(row);
+                    statusbox.channel_id.send_message(&ctx.http, |message| {
+                        message.content(text.join("\n")).components(|c| {
+                            let mut c = c.add_action_row(self.action_buttons.clone());
+                            // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
+                            for y in 0..gallery_geometry.1 {
+                                let mut row = CreateActionRow::default();
+                                for x in 0..gallery_geometry.0 {
+                                    let index = y * gallery_geometry.0 + x + 1;
+                                    row = row
+                                        .create_button(|b| {
+                                            b.style(ButtonStyle::Primary)
+                                                .label(format!("U{}", index))
+                                                .custom_id(format!("upscale.{}", index))
+                                        })
+                                        .clone();
                                 }
-                                c
-                            })
+                                c = c.add_action_row(row);
+                            }
+                            c
                         })
-                        .await
-                        .context("Posting pictures")?;
-                    // When all is said and done, delete the original message.
-                    command
-                        .delete_original_interaction_response(&ctx.http)
-                        .await
-                        .context("Deleting original message")?;
+                    })
+                    .await
+                    .context("Posting pictures")?;
+                    // When all is said and done, delete the statusbox.
+                    statusbox.delete(&ctx.http).await.context("Deleting status message")?;
                 }
             }
         }
@@ -360,7 +346,52 @@ impl Handler {
                 } else {
                     bail!("Expected url to end in 0.jpg");
                 }
-            }
+            },
+            "retry" | "restyle" => {
+                // First, we need to retrieve the original generation parameters from the database.
+                // All we have to work with is the UUID. That should be plenty.
+                let url = component
+                    .message
+                    .embeds
+                    .first()
+                    .context("Expected an embed")?
+                    .url
+                    .as_ref()
+                    .context("Expected an embed with a url")?;
+                debug!("Retrieving parameters for {}", url);
+                // The URL contains the UUID in the final component.
+                let uuid = url
+                    .rsplit_once('/')
+                    .context("Expected a URL with a UUID")?
+                    .1
+                    .split_once('.')
+                    .context("Expected a URL with an index")?
+                    .0;
+                debug!("UUID: {}", uuid);
+                // Now we can retrieve the parameters.
+                let request = self.context.db.get_parameters_for_batch(uuid).await?;
+                debug!("Parameters: {:?}", request);
+                // And finally we can generate.
+                if let Some(mut request) = request {
+                    if command == "restyle" {
+                        // Swap the style out for something random.
+                        request.supporting_prompt = generator::choose_random_style().to_string();
+                        request.base.dream = None;
+                    }
+                    // Recreate the raw prompt.
+                    // TODO: Really we should just pass the *already parsed* request in.
+                    request.base.raw = format!("{} --style {} --ar {}:{} --model {}", request.linguistic_prompt, request.supporting_prompt, request.width, request.height, request.model_name);
+                    let statusbox = component
+                        .create_followup_message(&ctx.http, |message| {
+                            message.content("Dreaming...")
+                        })
+                        .await
+                        .context("Creating initial statusbox")?;
+                    self.do_generate(ctx, statusbox, request.base, component.user.mention()).await?;
+                } else {
+                    bail!("No generation parameters found for this batch.");
+                }
+            },
             unknown => {
                 bail!("Unknown component: {}", unknown);
             }
@@ -453,7 +484,7 @@ impl EventHandler for Handler {
                     let e = utils::segment_lines(&e, 1800)[0];
                     // In this case we always send followup messages.
                     if let Err(err_err) = component.create_followup_message(&ctx.http, |f|
-                        f.content(format!("Error: {}", e))
+                        f.content(format!("Error: {:#}", e))
                     ).await {
                         // We couldn't send a followup.
                         error!("Error sending error message: {:?}", err_err);
@@ -505,35 +536,14 @@ impl EventHandler for Handler {
                      .required(true)
                  })
                  .create_option(|o| {
-                    o.name("style")
+                    let o = o.name("style")
                      .description("Style preset (EXPERIMENTAL)")
                      .kind(CommandOptionType::String)
-                     .required(false)
-                     .add_string_choice("Shōnen Anime", "Shōnen Anime, action-oriented, Akira Toriyama (Dragon Ball), youthful, vibrant, dynamic")
-                     .add_string_choice("Shōjo Anime", "Shōjo Anime, Romantic, Naoko Takeuchi (Sailor Moon), emotional, detailed backgrounds, soft colors")
-                     .add_string_choice("Seinen Anime", "Seinen Anime, Mature, Hajime Isayama (Attack on Titan), complex themes, realistic, detailed")
-                     .add_string_choice("Abstract Expressionism", "Abstract Expressionism, Abstract, Jackson Pollock, spontaneous, dynamic, emotional")
-                     .add_string_choice("Art Nouveau", "Art Nouveau, Decorative, Alphonse Mucha, organic forms, intricate, flowing")
-                     .add_string_choice("Baroque", "Baroque, Dramatic, Caravaggio, high contrast, ornate, realism")
-                     .add_string_choice("Classical", "Classical, Proportionate, Leonardo da Vinci, balanced, harmonious, detailed")
-                     .add_string_choice("Contemporary", "Contemporary, Innovative, Ai Weiwei, conceptual, diverse mediums, social commentary")
-                     .add_string_choice("Cubism", "Cubism, Geometric, Pablo Picasso, multi-perspective, abstract, fragmented")
-                     .add_string_choice("Fantasy", "Fantasy, Imaginative, J.R.R. Tolkien, mythical creatures, dreamlike, detailed")
-                     .add_string_choice("Film Noir", "Film Noir, Monochromatic, Orson Welles, high contrast, dramatic shadows, mystery")
-                     .add_string_choice("Impressionism", "Impressionism, Painterly, Claude Monet, light effects, outdoor scenes, everyday life")
-                     .add_string_choice("Minimalist", "Minimalist, Simplified, Agnes Martin, bare essentials, geometric, neutral colors")
-                     .add_string_choice("Modern", "Modern, Avant-garde, Piet Mondrian, non-representational, experimental, abstract")
-                     .add_string_choice("Neo-Gothic", "Neo-Gothic, Dark, H.R. Giger, intricate detail, macabre, architectural elements")
-                     .add_string_choice("Pixel Art", "Pixel Art, Retro, Shigeru Miyamoto, 8-bit, digital, geometric")
-                     .add_string_choice("Pop Art", "Pop Art, Colorful, Andy Warhol, mass culture, ironic, bold")
-                     .add_string_choice("Post-Impressionism", "Post-Impressionism, Expressive, Vincent Van Gogh, symbolic, bold colors, heavy brushstrokes")
-                     .add_string_choice("Renaissance", "Renaissance, Realistic, Michelangelo, perspective, humanism, religious themes")
-                     .add_string_choice("Retro / Vintage", "Retro / Vintage, Nostalgic, Norman Rockwell, past styles, soft colors, romantic")
-                     .add_string_choice("Romanticism", "Romanticism, Emotional, Caspar David Friedrich, nature, dramatic, imaginative")
-                     .add_string_choice("Surrealism", "Surrealism, Dreamlike, Salvador Dalí, irrational, bizarre, subconscious")
-                     .add_string_choice("Steampunk", "Steampunk, Futuristic, H.G. Wells, industrial, Victorian, mechanical")
-                     .add_string_choice("Street Art", "Street Art, Public, Keith Haring, social commentary, bold colors, mural")
-                     .add_string_choice("Watercolor", "Watercolor, Translucent, J.M.W. Turner, lightness, fluid, landscape")
+                     .required(false);
+                    for (name, value) in generator::STYLES.iter() {
+                        o.add_string_choice(name, value);
+                    }
+                    o
                  })
                 .create_option(|o| {
                     o.name("ar")

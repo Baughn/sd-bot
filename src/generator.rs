@@ -6,7 +6,9 @@ use std::{fmt::Debug, sync::Arc, pin::Pin, f32::NEG_INFINITY};
 use anyhow::{Result, Context, bail, Ok};
 use async_stream::try_stream;
 use futures::{StreamExt, Stream, channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded}, SinkExt, stream::{empty, FusedStream}, select, FutureExt};
+use lazy_static::lazy_static;
 use log::{info, debug, trace, warn};
+use rand::seq::SliceRandom;
 use reqwest::RequestBuilder;
 use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
@@ -594,4 +596,41 @@ impl ImageGeneratorModule {
         }.map(|r| r.unwrap_or_else(GenerationEvent::Error))
          .chain(rx)
     }
+}
+
+
+lazy_static! {
+    pub static ref STYLES: Vec<(&'static str, &'static str)> = vec![
+        ("Shōnen Anime", "Shōnen Anime, action-oriented, Akira Toriyama (Dragon Ball), youthful, vibrant, dynamic"),
+        ("Shōjo Anime", "Shōjo Anime, Romantic, Naoko Takeuchi (Sailor Moon), emotional, detailed backgrounds, soft colors"),
+        ("Seinen Anime", "Seinen Anime, Mature, Hajime Isayama (Attack on Titan), complex themes, realistic, detailed"),
+        ("Abstract Expressionism", "Abstract Expressionism, Abstract, Jackson Pollock, spontaneous, dynamic, emotional"),
+        ("Art Nouveau", "Art Nouveau, Decorative, Alphonse Mucha, organic forms, intricate, flowing"),
+        ("Baroque", "Baroque, Dramatic, Caravaggio, high contrast, ornate, realism"),
+        ("Classical", "Classical, Proportionate, Leonardo da Vinci, balanced, harmonious, detailed"),
+        ("Contemporary", "Contemporary, Innovative, Ai Weiwei, conceptual, diverse mediums, social commentary"),
+        ("Cubism", "Cubism, Geometric, Pablo Picasso, multi-perspective, abstract, fragmented"),
+        ("Fantasy", "Fantasy, Imaginative, J.R.R. Tolkien, mythical creatures, dreamlike, detailed"),
+        ("Film Noir", "Film Noir, Monochromatic, Orson Welles, high contrast, dramatic shadows, mystery"),
+        ("Impressionism", "Impressionism, Painterly, Claude Monet, light effects, outdoor scenes, everyday life"),
+        ("Minimalist", "Minimalist, Simplified, Agnes Martin, bare essentials, geometric, neutral colors"),
+        ("Modern", "Modern, Avant-garde, Piet Mondrian, non-representational, experimental, abstract"),
+        ("Neo-Gothic", "Neo-Gothic, Dark, H.R. Giger, intricate detail, macabre, architectural elements"),
+        ("Pixel Art", "Pixel Art, Retro, Shigeru Miyamoto, 8-bit, digital, geometric"),
+        ("Pop Art", "Pop Art, Colorful, Andy Warhol, mass culture, ironic, bold"),
+        ("Post-Impressionism", "Post-Impressionism, Expressive, Vincent Van Gogh, symbolic, bold colors, heavy brushstrokes"),
+        ("Renaissance", "Renaissance, Realistic, Michelangelo, perspective, humanism, religious themes"),
+        ("Retro / Vintage", "Retro / Vintage, Nostalgic, Norman Rockwell, past styles, soft colors, romantic"),
+        ("Romanticism", "Romanticism, Emotional, Caspar David Friedrich, nature, dramatic, imaginative"),
+        ("Surrealism", "Surrealism, Dreamlike, Salvador Dalí, irrational, bizarre, subconscious"),
+        ("Steampunk", "Steampunk, Futuristic, H.G. Wells, industrial, Victorian, mechanical"),
+        ("Street Art", "Street Art, Public, Keith Haring, social commentary, bold colors, mural"),
+        ("Watercolor", "Watercolor, Translucent, J.M.W. Turner, lightness, fluid, landscape"),
+    ];
+}
+
+pub fn choose_random_style() -> &'static str {
+    let mut rng = rand::thread_rng();
+    let (_, style) = STYLES.choose(&mut rng).unwrap();
+    style
 }
