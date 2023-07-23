@@ -93,34 +93,85 @@ impl Handler {
                 }
             }
             "prompt" => {
-                let prompt = command
-                    .data
-                    .options
-                    .get(0)
-                    .context("Expected prompt")?
-                    .resolved
-                    .as_ref()
-                    .context("Expected prompt")?;
-                let style = command.data.options.get(1);
-                info!("Style: {:?}", style);
-                // TODO: Implement the options.
-
-                if let CommandDataOptionValue::String(prompt) = prompt {
-                    let raw = prompt.to_string();
-                    status_text = format!("Dreaming about `{}`", raw);
-                    self.context
-                        .image_generator
-                        .generate(generator::UserRequest {
-                            user: command.user.to_string(),
-                            raw,
-                            dream: None,
-                            source: generator::Source::Discord,
-                        })
-                        .await
-                } else {
-                    bail!("Expected parameter to be a string");
+                let mut prompt = None;
+                let mut style = None;
+                let mut ar = None;
+                let mut model = None;
+                for option in &command.data.options {
+                    match option.name.as_str() {
+                        "prompt" => {
+                            prompt = option
+                                .resolved
+                                .as_ref();
+                        },
+                        "style" => {
+                            style = option
+                                .resolved
+                                .as_ref();
+                        },
+                        "ar" => {
+                            ar = option
+                                .resolved
+                                .as_ref();
+                        },
+                        "model" => {
+                            model = option
+                                .resolved
+                                .as_ref();
+                        },
+                        unknown => {
+                            bail!("Unknown option: {}", unknown);
+                        }
+                    };
                 }
-            }
+
+                // Type-check and unwrap the options.
+                let prompt = if let Some(CommandDataOptionValue::String(prompt)) = prompt {
+                    prompt
+                } else {
+                    bail!("Expected prompt to be a string");
+                };
+                let style = if let Some(CommandDataOptionValue::String(style)) = style {
+                    Some(style)
+                } else {
+                    None
+                };
+                let ar = if let Some(CommandDataOptionValue::String(ar)) = ar {
+                    Some(ar)
+                } else {
+                    None
+                };
+                let model = if let Some(CommandDataOptionValue::String(model)) = model {
+                    Some(model)
+                } else {
+                    None
+                };
+
+                // Stick these on the end of the 'command line' so that the parser
+                // can pick them up.
+                let mut raw = prompt.to_string();
+                if let Some(style) = style {
+                    raw.push_str(&format!(" --style {}", style));
+                }
+                if let Some(ar) = ar {
+                    raw.push_str(&format!(" --ar {}", ar));
+                }
+                if let Some(model) = model {
+                    raw.push_str(&format!(" --model {}", model));
+                }
+
+                // Now we can generate.
+                status_text = format!("Dreaming about `{}`", raw);
+                self.context
+                    .image_generator
+                    .generate(generator::UserRequest {
+                        user: command.user.to_string(),
+                        raw,
+                        dream: None,
+                        source: generator::Source::Discord,
+                    })
+                    .await
+            },
             x => bail!("Unknown command: {}", x),
         };
         let mut stream = Box::pin(stream);
@@ -152,12 +203,14 @@ impl Handler {
                     // TODO: Implement this.
                 ),
                 GenerationEvent::Queued(n) => {
-                    status_text.push_str(&format!("\nQueued at position {n}"));
-                    command
-                        .edit_original_interaction_response(&ctx.http, |message| {
-                            message.content(&status_text)
-                        })
-                        .await?;
+                    if n > 0 {
+                        status_text.push_str(&format!("\nQueued at position {n}"));
+                        command
+                            .edit_original_interaction_response(&ctx.http, |message| {
+                                message.content(&status_text)
+                            })
+                            .await?;
+                    }
                 }
                 GenerationEvent::Generating(percent) => {
                     // Erase the Queued line, or a previous Generating line.
