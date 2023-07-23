@@ -23,7 +23,7 @@ lazy_static! {
 pub struct BotConfig {
     pub command_prefix: String,
     pub backend: BotBackend,
-    pub database: DatabseConfig,
+    pub database: DatabaseConfig,
     #[serde(default)]
     pub irc: Vec<IrcConfig>,
     pub aliases: HashMap<String, String>,
@@ -41,7 +41,7 @@ pub struct BotBackend {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DatabseConfig {
+pub struct DatabaseConfig {
     pub path: String,
 }
 
@@ -145,9 +145,13 @@ fn update_config(old: &mut BotConfig, new: BotConfig) {
     // Check what has changed.
     // We panic if:
     // - The Discord or IRC config changes.
+    // - The database path changes.
     // Otherwise, we just update the config.
     if old.irc != new.irc {
         panic!("IRC config changed");
+    }
+    if old.database != new.database {
+        panic!("Database config changed");
     }
     info!("Config changed:\n{}", toml::to_string_pretty(&new).unwrap());
     *old = new;

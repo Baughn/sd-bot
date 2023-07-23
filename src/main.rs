@@ -4,7 +4,7 @@ use clap::Parser;
 use config::BotConfigModule;
 use futures::{prelude::*, stream::FuturesUnordered};
 use generator::ImageGeneratorModule;
-use log::info;
+use log::{info, error};
 
 use crate::{
     db::DatabaseModule,
@@ -37,6 +37,12 @@ struct CommandLineFlags {
 async fn main() -> Result<()> {
     env_logger::init();
     let args = CommandLineFlags::parse();
+
+    // Immediately crash on panic.
+    std::panic::set_hook(Box::new(|panic_info| {
+        error!("Panic: {:?}", panic_info);
+        std::process::exit(1);
+    }));
 
     // Initialize context.
     let config = BotConfigModule::new(args.config_path).context("failed to initialize config")?;
