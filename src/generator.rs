@@ -12,6 +12,7 @@ use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
+use uuid::Uuid;
 
 use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule};
 
@@ -100,6 +101,7 @@ impl Default for ParsedRequest {
 pub struct CompletedRequest {
     pub base: ParsedRequest,
     pub images: Vec<JpegBlob>,
+    pub uuid: Uuid,
 }
 
 impl Debug for CompletedRequest {
@@ -495,6 +497,7 @@ impl ImageGeneratorModule {
             let completed_request = CompletedRequest {
                 base: request,
                 images: final_images,
+                uuid: uuid::Uuid::new_v4(),
             };
             yield GenerationEvent::Completed(completed_request);
         }.map(|r| r.unwrap_or_else(GenerationEvent::Error))

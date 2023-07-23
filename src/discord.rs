@@ -248,17 +248,12 @@ impl Handler {
                             message.content(&status_text)
                         })
                         .await?;
-                    // Create a gallery of the images.
-                    let gallery_geometry = utils::gallery_geometry(c.images.len());
-                    let overview = utils::overview_of_pictures(&c.images)?;
-                    let all: Vec<Vec<u8>> = std::iter::once(overview)
-                        .chain(c.images.into_iter())
-                        .collect();
-                    // Send the results to the user.
-                    let urls = utils::upload_images(&self.context.config, all)
-                        .await
-                        .context("failed to upload images")?;
 
+                    // Add images to the database & upload them.
+                    let gallery_geometry = utils::gallery_geometry(c.images.len());
+                    let urls = self.context.db.add_image_batch(&c).await?;
+                    
+                    // Send the results to the user.
                     let mut text = vec![
                         format!(
                             "Dreams of `{}` | For {}",

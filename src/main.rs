@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
         .await;
 
     // Start backends.
-    let db = DatabaseModule::new(&config).await?;
+    let db = DatabaseModule::new(config.clone()).await?;
     let prompt_generator = GPTPromptGeneratorModule::new(config.clone());
     let image_generator = ImageGeneratorModule::new(config.clone(), prompt_generator.clone())?;
 

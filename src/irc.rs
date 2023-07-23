@@ -125,7 +125,7 @@ impl IrcTask {
                         .chain(c.images.into_iter())
                         .collect();
                     // Send the results to the user.
-                    let urls = utils::upload_images(&context.config, all)
+                    let urls = utils::upload_images(&context.config, &c.uuid, all)
                         .await
                         .context("failed to upload images")?;
                     send(sender, target, &format!("{}: {}", nick, urls[0])).await?;

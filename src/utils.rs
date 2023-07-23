@@ -7,6 +7,7 @@ use anyhow::{bail, Context, Result};
 use image::GenericImage;
 use log::{debug, info};
 use unicode_segmentation::UnicodeSegmentation;
+use uuid::Uuid;
 
 use crate::config::BotConfigModule;
 
@@ -90,8 +91,7 @@ pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
     }
 }
 
-pub async fn upload_images(config: &BotConfigModule, images: Vec<Vec<u8>>) -> Result<Vec<String>> {
-    let uuid = uuid::Uuid::new_v4();
+pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Vec<u8>>) -> Result<Vec<String>> {
     let mut urls = Vec::new();
     for (i, data) in images.iter().enumerate() {
         let filename = format!("{}.{}.jpg", uuid, i);
