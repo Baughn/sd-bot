@@ -43,8 +43,8 @@ default_positive = ""
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models."MeinaMix_v11"]
-workflow = "workflow-sd15.json.tmpl"
+workflow = "workflow-sd15-baseonly.json.tmpl"
 baseline = "MeinaMix_v11.safetensors"
-refiner = "MeinaMix_v11.safetensors"
+refiner = ""
 default_positive = ""
 default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
