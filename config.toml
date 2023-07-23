@@ -25,7 +25,8 @@ channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
 default = "sdxl_0.9"
-Anime = "waifuxl"
+Anime = "MeinaMix_v11"
+"WaifuXL (experimental)" = "waifuxl"
 
 [models."sdxl_0.9"]
 workflow = "workflow-sdxl.json.tmpl"
@@ -40,3 +41,10 @@ baseline = "wdxl-aesthetic-0.9.safetensors"
 refiner = "sd_xl_refiner_0.9.safetensors"
 default_positive = ""
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
+
+[models."MeinaMix_v11"]
+workflow = "workflow-sd15.json.tmpl"
+baseline = "MeinaMix_v11.safetensors"
+refiner = "MeinaMix_v11.safetensors"
+default_positive = ""
+default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"

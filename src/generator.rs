@@ -315,6 +315,8 @@ impl ParsedRequest {
             .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
             .replace("__WIDTH__", &self.width.to_string())
             .replace("__HEIGHT__", &self.height.to_string())
+            .replace("__WIDTH_d2__", &(self.width / 2).to_string())
+            .replace("__HEIGHT_d2__", &(self.height / 2).to_string())
             .replace("__4xWIDTH__", &(self.width * 4).to_string())
             .replace("__4xHEIGHT__", &(self.height * 4).to_string())
             .replace("__SEED__", &(self.seed + seed_offset).to_string())
