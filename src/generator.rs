@@ -232,7 +232,23 @@ impl ParsedRequest {
             parsed.model_name = alias.clone();
         }
         if config.models.get(&parsed.model_name).is_none() {
-            bail!("Unknown model: {}", parsed.model_name);
+            // That model doesn't exist, so... do a Levenshtein distance check.
+            let mut best_distance = usize::MAX;
+            let mut best_model = None;
+            for model in config.aliases.keys().chain(config.models.keys()) {
+                let distance = strsim::levenshtein(&parsed.model_name, model);
+                if distance < best_distance {
+                    best_distance = distance;
+                    best_model = Some(model);
+                }
+            }
+            if let Some(best_model) = best_model {
+                if best_distance > 2 {
+                    bail!("Unknown model: {}. Did you mean {}?", parsed.model_name, best_model);
+                } else {
+                    parsed.model_name = best_model.clone();
+                }
+            }
         }
         if linguistic_prompt.is_empty() {
             bail!("Linguistic prompt is required");
