@@ -27,4 +27,8 @@ fi
 export RUST_LOG="${RUST_LOG:-info,sd_bot_2,tracing=warn,serenity=warn}"
 #export RUST_BACKTRACE=1
 
-nix-shell --run "cargo run --release"
+while true; do
+  nix-shell --run "cargo run --release"
+  echo "Bot exited, restarting in 5 seconds..."
+  sleep 5
+done
