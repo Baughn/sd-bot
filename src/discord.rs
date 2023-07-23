@@ -304,10 +304,8 @@ impl Handler {
                     debug!("Replacing {} with {}", url, new_url);
                     // Send a new message with the new url.
                     component
-                        .create_interaction_response(&ctx.http, |message| {
-                            message
-                                .kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|message| message.content(new_url))
+                        .create_followup_message(&ctx.http, |message| {
+                            message.content(new_url)
                         })
                         .await
                         .context("Sending new message")?;
@@ -405,17 +403,10 @@ impl EventHandler for Handler {
                     error!("Error handling component: {:?}", e);
                     let e = format!("{:#}", e);
                     let e = utils::segment_lines(&e, 1800)[0];
-                    // In this case we can always use an interaction response. (Ephemeral)
-                    if let Err(err_err) = component
-                        .create_interaction_response(&ctx.http, |message| {
-                            message
-                                .kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|message| {
-                                    message.content(format!("Error: {}", e)).ephemeral(true)
-                                })
-                        })
-                        .await
-                    {
+                    // In this case we always send followup messages.
+                    if let Err(err_err) = component.create_followup_message(&ctx.http, |f|
+                        f.content(format!("Error: {}", e))
+                    ).await {
                         // We couldn't send a followup.
                         error!("Error sending error message: {:?}", err_err);
                     }
