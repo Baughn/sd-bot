@@ -18,7 +18,7 @@ nick = "GANBot"
 channels = ["#nanoha", "#nanobot", "#dess"]
 
 [[irc]]
-server = "irc.libera.net"
+server = "irc.libera.chat"
 port = 6697
 nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
@@ -48,3 +48,10 @@ baseline = "MeinaMix_v11.safetensors"
 refiner = ""
 default_positive = ""
 default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
+
+[models."cetusMix_whalefall_v2"]
+workflow = "workflow-sd15-baseonly.json.tmpl"
+baseline = "cetusMix_whalefall_v2.safetensors"
+refiner = ""
+default_positive = ""
+default_negative = "extra fingers,fewer fingers,(low quality, worst quality:1.4), (bad anatomy), (inaccurate limb:1.2), bad composition, inaccurate eyes, extra digit,fewer digits,(extra arms:1.2)"
