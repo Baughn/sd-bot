@@ -82,13 +82,19 @@ impl EventHandler for ConfigEventHandler {
 }
 
 #[derive(Clone)]
-pub struct BotConfigModule(Arc<RwLock<BotConfig>>);
+pub struct BotConfigModule{
+    config_path: String,
+    data: Arc<RwLock<BotConfig>>
+}
 
 impl BotConfigModule {
     /// Initialize the config.
     /// This reads the config from disk, and starts the updater task.
-    pub fn new() -> Result<BotConfigModule> {
-        let config = BotConfigModule(Arc::new(RwLock::new(read_config()?)));
+    pub fn new(config_path: String) -> Result<BotConfigModule> {
+        let config = BotConfigModule {
+            data: Arc::new(RwLock::new(read_config(&config_path)?)),
+            config_path,
+        };
         tokio::task::spawn(config.clone().updater());
         Ok(config)
     }
@@ -103,9 +109,9 @@ impl BotConfigModule {
             .expect("Error watching config file");
         while let Some(event) = rx.next().await {
             if let notify::EventKind::Modify(_) = event.kind {
-                match read_config() {
+                match read_config(&self.config_path) {
                     Ok(new_config) => {
-                        update_config(&mut *self.0.write().await, new_config);
+                        update_config(&mut *self.data.write().await, new_config);
                     }
                     Err(err) => {
                         error!("Error reading config: {:?}", err);
@@ -117,7 +123,7 @@ impl BotConfigModule {
 
     /// Copies the current config.
     pub async fn snapshot(&self) -> BotConfig {
-        self.0.read().await.clone()
+        self.data.read().await.clone()
     }
 
     /// Run some function with the current config.
@@ -126,13 +132,13 @@ impl BotConfigModule {
     where
         F: FnOnce(&BotConfig) -> T,
     {
-        f(&*self.0.read().await)
+        f(&*self.data.read().await)
     }
 }
 
-fn read_config() -> Result<BotConfig> {
-    let text = std::fs::read_to_string("config.toml").context("Error reading config.toml")?;
-    toml::from_str(&text).context("Error parsing config.toml")
+fn read_config(config_path: &str) -> Result<BotConfig> {
+    let text = std::fs::read_to_string(config_path).context("Error reading config file")?;
+    toml::from_str(&text).context("Error parsing config file")
 }
 
 fn update_config(old: &mut BotConfig, new: BotConfig) {

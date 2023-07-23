@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 
+use clap::Parser;
 use config::BotConfigModule;
 use futures::{prelude::*, stream::FuturesUnordered};
 use generator::ImageGeneratorModule;
@@ -7,7 +8,6 @@ use log::info;
 
 use crate::{
     db::DatabaseModule,
-    generator::{GenerationEvent, UserRequest},
     gpt::GPTPromptGeneratorModule,
 };
 
@@ -18,8 +18,8 @@ mod generator;
 mod gpt;
 mod irc;
 mod utils;
-
 #[derive(Clone)]
+
 pub struct BotContext {
     pub config: BotConfigModule,
     pub db: DatabaseModule,
@@ -27,12 +27,19 @@ pub struct BotContext {
     pub image_generator: ImageGeneratorModule,
 }
 
+#[derive(Parser, Debug)]
+struct CommandLineFlags {
+    #[arg(long, short)]
+    pub config_path: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
+    let args = CommandLineFlags::parse();
 
     // Initialize context.
-    let config = BotConfigModule::new().context("failed to initialize config")?;
+    let config = BotConfigModule::new(args.config_path).context("failed to initialize config")?;
     config
         .with_config(|c| info!("Loaded config: {:?}", c))
         .await;
