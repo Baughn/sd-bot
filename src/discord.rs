@@ -501,11 +501,8 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("Connected as {}", ready.user.name);
-        let command_prefix = self
-            .context
-            .config
-            .with_config(|c| c.command_prefix.clone())
-            .await;
+        let config = self.context.config.snapshot().await;
+        let command_prefix = config.command_prefix;
         let cname = |suffix: &str| format!("{}{}", command_prefix, suffix);
 
         let commands = Command::set_global_application_commands(&ctx.http, |c| {
@@ -559,11 +556,14 @@ impl EventHandler for Handler {
                      .add_string_choice("9:21", "9:21")
                 })
                 .create_option(|o| {
-                    o.name("model")
-                     .description("Model")
-                     .kind(CommandOptionType::String)
-                     .required(false)
-                     .add_string_choice("Flexible (default)", "default")
+                    let mut o = o.name("model")
+                    .description("Model")
+                    .kind(CommandOptionType::String)
+                    .required(false);
+                    for alias in config.aliases.keys() {
+                        o = o.add_string_choice(alias, alias);
+                    }
+                    o
                 })
             })
         }).await;

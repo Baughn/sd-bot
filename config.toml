@@ -25,7 +25,7 @@ channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
 default = "sdxl_0.9"
-anime = "waifuxl"
+Anime = "waifuxl"
 
 [models."sdxl_0.9"]
 workflow = "workflow-sdxl.json.tmpl"
