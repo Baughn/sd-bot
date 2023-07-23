@@ -578,7 +578,8 @@ impl ImageGeneratorModule {
                 // New picture to generate. 
                 command = command_receiver.next() => {
                     if let Some((request, mut tx)) = command {
-                        tx.send(GenerationEvent::Queued(queue.len() as u32)).await.expect("failed to send queued event");
+                        let qsz = queue.len() + if current_tx.is_some() { 1 } else { 0 };
+                        tx.send(GenerationEvent::Queued(qsz as u32)).await.expect("failed to send queued event");
                         queue.push((request, tx));
                     } else {
                         panic!("command channel closed");
