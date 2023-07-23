@@ -4,21 +4,20 @@
 //
 // Well, panic actually. But then it'll restart.
 
-use std::{collections::HashMap, path::Path, sync::Arc};
 use std::fmt::Debug;
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use log::{error, info};
 use notify::{EventHandler, Watcher};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 lazy_static! {
     static ref CONFIG_PATH: &'static Path = Path::new("config.toml");
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotConfig {
@@ -74,10 +73,10 @@ impl EventHandler for ConfigEventHandler {
                 if let Err(err) = self.tx.unbounded_send(event) {
                     panic!("Error sending config event: {:?}", err)
                 }
-            },
+            }
             Err(err) => {
                 panic!("Error in config watcher: {:?}", err);
-            },
+            }
         }
     }
 }
@@ -107,10 +106,10 @@ impl BotConfigModule {
                 match read_config() {
                     Ok(new_config) => {
                         update_config(&mut *self.0.write().await, new_config);
-                    },
+                    }
                     Err(err) => {
                         error!("Error reading config: {:?}", err);
-                    },
+                    }
                 }
             }
         }
@@ -132,8 +131,7 @@ impl BotConfigModule {
 }
 
 fn read_config() -> Result<BotConfig> {
-    let text = std::fs::read_to_string("config.toml")
-        .context("Error reading config.toml")?;
+    let text = std::fs::read_to_string("config.toml").context("Error reading config.toml")?;
     toml::from_str(&text).context("Error parsing config.toml")
 }
 

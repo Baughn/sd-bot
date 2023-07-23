@@ -1,8 +1,11 @@
-use std::{os::unix::prelude::PermissionsExt, io::{Write, Cursor}};
+use std::{
+    io::{Cursor, Write},
+    os::unix::prelude::PermissionsExt,
+};
 
-use anyhow::{bail, Result, Context};
+use anyhow::{bail, Context, Result};
 use image::GenericImage;
-use log::{info, debug};
+use log::{debug, info};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::config::BotConfigModule;
@@ -18,10 +21,14 @@ pub fn gallery_geometry(image_count: usize) -> (u32, u32) {
 pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
     const BORDER: u32 = 8;
     // Parse the JPEGs.
-    let images = jpegs.iter().map(|jpeg| {
-        image::load_from_memory(jpeg).context("failed to parse JPEG")
-        .map(|image| image.to_rgb8())
-    }).collect::<Result<Vec<_>>>()
+    let images = jpegs
+        .iter()
+        .map(|jpeg| {
+            image::load_from_memory(jpeg)
+                .context("failed to parse JPEG")
+                .map(|image| image.to_rgb8())
+        })
+        .collect::<Result<Vec<_>>>()
         .context("failed to parse JPEGs")?;
     if let Some(sample) = images.first() {
         // Decide on a color for the border.
@@ -43,7 +50,11 @@ pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
         border_color[0] /= images.len() as u64;
         border_color[1] /= images.len() as u64;
         border_color[2] /= images.len() as u64;
-        let border_color = image::Rgb([border_color[0] as u8, border_color[1] as u8, border_color[2] as u8]);
+        let border_color = image::Rgb([
+            border_color[0] as u8,
+            border_color[1] as u8,
+            border_color[2] as u8,
+        ]);
         // Figure out the size of the overview.
         // We'll try to be square-ish.
         let (width_images, height_images) = gallery_geometry(images.len());
@@ -61,11 +72,17 @@ pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
         for (i, image) in images.iter().enumerate() {
             let x = (i as u32 % width_images) * width + BORDER * (i as u32 % width_images + 1);
             let y = (i as u32 / width_images) * height + BORDER * (i as u32 / width_images + 1);
-            overview.copy_from(image, x, y).context("failed to copy image")?;
+            overview
+                .copy_from(image, x, y)
+                .context("failed to copy image")?;
         }
         // Encode the overview as JPEG.
         let mut output = Vec::new();
-        overview.write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::Jpeg(90))
+        overview
+            .write_to(
+                &mut Cursor::new(&mut output),
+                image::ImageOutputFormat::Jpeg(90),
+            )
             .context("failed to encode JPEG")?;
         Ok(output)
     } else {
@@ -81,29 +98,38 @@ pub async fn upload_images(config: &BotConfigModule, images: Vec<Vec<u8>>) -> Re
         info!("Uploading {} bytes to {}", data.len(), filename);
         // Save the image to a temporary file.
         let tmp = tempfile::NamedTempFile::new().context("failed to create temporary file")?;
-        tmp.as_file().write_all(data).context("failed to write temporary file")?;
-        tmp.as_file().set_permissions(PermissionsExt::from_mode(0o644)).context("failed to chmod temporary file")?;
+        tmp.as_file()
+            .write_all(data)
+            .context("failed to write temporary file")?;
+        tmp.as_file()
+            .set_permissions(PermissionsExt::from_mode(0o644))
+            .context("failed to chmod temporary file")?;
         // We'll just call scp directly. It's not like we're going to be uploading a lot of images.
         let (host, webdir, relative) = {
-            config.with_config(|c| {
-                (c.backend.webhost.clone(), c.backend.webdir.clone(), c.backend.webdir_internal.clone())
-            }).await
+            config
+                .with_config(|c| {
+                    (
+                        c.backend.webhost.clone(),
+                        c.backend.webdir.clone(),
+                        c.backend.webdir_internal.clone(),
+                    )
+                })
+                .await
         };
         let mut command = tokio::process::Command::new("scp");
         command
-            .env_remove("LD_PRELOAD")  // SSH doesn't like tcmalloc.
-            .arg("-F").arg("None") // Don't read ~/.ssh/config.
-            .arg("-p")  // Preserve access bits.
+            .env_remove("LD_PRELOAD") // SSH doesn't like tcmalloc.
+            .arg("-F")
+            .arg("None") // Don't read ~/.ssh/config.
+            .arg("-p") // Preserve access bits.
             .arg(tmp.path())
             .arg(format!("{host}:{webdir}/{relative}/{filename}"));
         debug!("Running {:?}", &command);
-        let status = command
-            .status().await
-            .context("failed to run scp")?;
+        let status = command.status().await.context("failed to run scp")?;
         if !status.success() {
             bail!("scp failed: {}", status);
         }
-        
+
         urls.push(format!("https://{host}/{relative}/{filename}"));
     }
 
@@ -114,7 +140,11 @@ pub async fn upload_images(config: &BotConfigModule, images: Vec<Vec<u8>>) -> Re
 fn break_line(text: &str, length_limit: usize) -> (&str, &str) {
     // unicode_word_indices gives us the start of the words, but we want the ends.
     // So we skip the first one, and then add the end of the string.
-    let mut boundaries = text.unicode_word_indices().map(|(i, _)| i).skip(1).collect::<Vec<_>>();
+    let mut boundaries = text
+        .unicode_word_indices()
+        .map(|(i, _)| i)
+        .skip(1)
+        .collect::<Vec<_>>();
     boundaries.push(text.len());
     if let Some(first) = boundaries.first() {
         if *first > length_limit {
@@ -139,8 +169,8 @@ fn break_line(text: &str, length_limit: usize) -> (&str, &str) {
 
 /// Segment a string (which may be one or more lines) into lines of at most `length_limit` characters.
 pub fn segment_lines(text: &str, length_limit: usize) -> Vec<&str> {
-    text.lines().flat_map(
-        |line| {
+    text.lines()
+        .flat_map(|line| {
             let mut lines = vec![];
             let mut remaining = line;
             while !remaining.is_empty() {
@@ -149,8 +179,8 @@ pub fn segment_lines(text: &str, length_limit: usize) -> Vec<&str> {
                 remaining = rest;
             }
             lines
-        }
-    ).collect()
+        })
+        .collect()
 }
 
 /// Segment a string, discarding all but the first segment.
@@ -177,7 +207,7 @@ pub fn hash(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_segment_short() {
         assert_eq!(segment_lines("", 10).len(), 0);
@@ -191,7 +221,10 @@ mod tests {
 
     #[test]
     fn test_hash() {
-        assert_eq!(hash("hello"), "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f");
+        assert_eq!(
+            hash("hello"),
+            "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f"
+        );
     }
 
     #[test]

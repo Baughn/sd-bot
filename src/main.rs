@@ -1,23 +1,23 @@
-
-
-use anyhow::{Result, bail, Context};
+use anyhow::{bail, Context, Result};
 
 use config::BotConfigModule;
 use futures::{prelude::*, stream::FuturesUnordered};
 use generator::ImageGeneratorModule;
 use log::info;
 
+use crate::{
+    db::DatabaseModule,
+    generator::{GenerationEvent, UserRequest},
+    gpt::GPTPromptGeneratorModule,
+};
 
-use crate::{generator::{UserRequest, GenerationEvent}, gpt::GPTPromptGeneratorModule, db::DatabaseModule};
-
+mod config;
 mod db;
 mod discord;
-mod config;
 mod generator;
 mod gpt;
 mod irc;
 mod utils;
-
 
 #[derive(Clone)]
 pub struct BotContext {
@@ -32,15 +32,16 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     // Initialize context.
-    let config = BotConfigModule::new()
-        .context("failed to initialize config")?;
-    config.with_config(|c| info!("Loaded config: {:?}", c)).await;
+    let config = BotConfigModule::new().context("failed to initialize config")?;
+    config
+        .with_config(|c| info!("Loaded config: {:?}", c))
+        .await;
 
     // Start backends.
     let db = DatabaseModule::new(&config).await?;
     let prompt_generator = GPTPromptGeneratorModule::new(config.clone());
     let image_generator = ImageGeneratorModule::new(config.clone(), prompt_generator.clone())?;
-    
+
     let context = BotContext {
         config: config.clone(),
         db: db.clone(),
@@ -66,13 +67,17 @@ async fn main() -> Result<()> {
     // }).await?;
 
     // Start IRC client(s)
-    let mut irc_tasks = config.with_config(|c| {
-        c.irc.iter().map(|irc_config| {
-            irc::IrcTask::new(irc_config.clone(), context.clone())
-        }).collect::<Vec<_>>()
-    }).await;
+    let mut irc_tasks = config
+        .with_config(|c| {
+            c.irc
+                .iter()
+                .map(|irc_config| irc::IrcTask::new(irc_config.clone(), context.clone()))
+                .collect::<Vec<_>>()
+        })
+        .await;
     let mut irc_runners = irc_tasks
-        .iter_mut().map(|t| t.run())
+        .iter_mut()
+        .map(|t| t.run())
         .collect::<FuturesUnordered<_>>();
 
     // Start Discord client
@@ -88,4 +93,3 @@ async fn main() -> Result<()> {
         },
     }
 }
-
