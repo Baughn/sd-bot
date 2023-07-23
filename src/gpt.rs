@@ -34,8 +34,17 @@ impl GPTPromptGeneratorModule {
         Self { config }
     }
 
-    /// Generates a fully baked prompt for the user, using GPT-4.
+    /// Wraps the generation function in a retry handler.
+    /// You know, just in case.
     pub async fn generate(&self, user: &str, dream: &str) -> Result<GPTPrompt> {
+        let strategy = tokio_retry::strategy::FixedInterval::from_millis(1000).take(2);
+        tokio_retry::Retry::spawn(strategy, || self.do_generate(user, dream))
+            .await
+            .context("While generating prompt")
+    }
+
+    /// Generates a fully baked prompt for the user, using GPT-4.
+    async fn do_generate(&self, user: &str, dream: &str) -> Result<GPTPrompt> {
         let prompt_template = std::fs::read_to_string("prompt-completion.tmpl")
             .context("While reading prompt-completion.tmpl")?;
         trace!("Prompt template hash: {}", utils::hash(&prompt_template));
