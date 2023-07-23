@@ -102,6 +102,9 @@ impl GPTPromptGeneratorModule {
             .content
             .clone()
             .context("No content in GPT response")?;
+        // This won't include a trailing }, since that's a stop token.
+        // So we'll add it back in.
+        let result = format!("{} }}", result);
         // Also save these to a file, for later fine-tuning of a local model.
         let mut logfile = std::fs::OpenOptions::new()
             .append(true)
