@@ -380,7 +380,7 @@ impl Handler {
                     }
                     // Recreate the raw prompt.
                     // TODO: Really we should just pass the *already parsed* request in.
-                    request.base.raw = format!("{} --style {} --ar {}:{} --model {}", request.linguistic_prompt, request.supporting_prompt, request.width, request.height, request.model_name);
+                    request.base.raw = format!("{} --style {} --no {} --ar {}:{} --model {}", request.linguistic_prompt, request.supporting_prompt, request.negative_prompt, request.width, request.height, request.model_name);
                     let statusbox = component
                         .create_followup_message(&ctx.http, |message| {
                             message.content("Dreaming...")

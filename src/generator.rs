@@ -286,8 +286,16 @@ impl ParsedRequest {
         // Load the workflow.
         let workflow = std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
         // Replace the placeholders.
-        let supporting_prompt = self.supporting_prompt.clone() + if self.use_pos_default { &model_config.default_positive } else { "" };
-        let negative_prompt = self.negative_prompt.clone() + if self.use_neg_default { &model_config.default_negative } else { "" };
+        let supporting_prompt = if self.use_pos_default {
+            self.supporting_prompt.clone() + ", " + &model_config.default_positive
+        } else {
+            self.supporting_prompt.clone()
+        };
+        let negative_prompt = if self.use_neg_default {
+            self.negative_prompt.clone() + ", " + &model_config.default_negative
+        } else {
+            self.negative_prompt.clone()
+        };
         let steps_cutover = (self.steps as f32 * 0.66) as u32;
 
         fn json_encode_string(s: &str) -> String {
