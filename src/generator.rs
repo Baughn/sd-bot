@@ -228,9 +228,6 @@ impl ParsedRequest {
         }
 
         // Do some final validation.
-        while let Some(alias) = config.aliases.get(&parsed.model_name) {
-            parsed.model_name = alias.clone();
-        }
         if config.models.get(&parsed.model_name).is_none() {
             // That model doesn't exist, so... do a Levenshtein distance check.
             let mut best_distance = usize::MAX;
@@ -249,6 +246,9 @@ impl ParsedRequest {
                     parsed.model_name = best_model.clone();
                 }
             }
+        }
+        while let Some(alias) = config.aliases.get(&parsed.model_name) {
+            parsed.model_name = alias.clone();
         }
         if linguistic_prompt.is_empty() {
             bail!("Linguistic prompt is required");
