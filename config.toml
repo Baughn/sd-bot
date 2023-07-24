@@ -26,6 +26,7 @@ channels = ["#questionablebotting", "#questionablequesting"]
 [aliases]
 default = "sdxl_0.9"
 Anime = "MeinaMix_v11"
+"Anime (Dynamic)" = "cetusMix_whalefall_v2"
 "WaifuXL (experimental)" = "waifuxl"
 
 [models."sdxl_0.9"]
