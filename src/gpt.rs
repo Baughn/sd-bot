@@ -34,6 +34,62 @@ impl GPTPromptGeneratorModule {
         Self { config }
     }
 
+    // TODO: Fix this duplication.
+    pub async fn gpt3_5(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
+        // Set up the OpenAI client.
+        let key = std::env::var("OPENAI_API_KEY")
+            .context("OPENAI_API_KEY not set. Please stick to real help subjects.")?;
+        let client = openai_api_rs::v1::api::Client::new(key);
+        // Ask GPT-3.5-turbo to complete the prompt.
+        let model = chat_completion::GPT3_5_TURBO.to_string();
+        let req = ChatCompletionRequest {
+            model,
+            messages: vec![
+                chat_completion::ChatCompletionMessage {
+                    role: chat_completion::MessageRole::system,
+                    content: Some(system_prompt.to_string()),
+                    name: None,
+                    function_call: None,
+                },
+                chat_completion::ChatCompletionMessage {
+                    role: chat_completion::MessageRole::user,
+                    content: Some(user_prompt.to_string()),
+                    name: None,
+                    function_call: None,
+                },
+            ],
+            functions: None,
+            function_call: None,
+            temperature: Some(1.0),
+            top_p: None,
+            n: None,
+            stream: Some(false),
+            stop: None,
+            max_tokens: Some(800),
+            presence_penalty: None,
+            frequency_penalty: None,
+            logit_bias: None,
+            user: None,
+        };
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            client.chat_completion(req),
+        );
+        let result = result
+            .await
+            .context("While completing prompt")??;
+        log::info!("Generated (3.5) {} to {:?}", user_prompt, result);
+        let result = result
+            .choices
+            .get(0)
+            .context("No choices in GPT response")?
+            .message
+            .content
+            .clone()
+            .context("No content in GPT response")?;
+        Ok(result)
+    }
+
     /// Wraps the generation function in a retry handler.
     /// You know, just in case.
     pub async fn generate(&self, user: &str, dream: &str) -> Result<GPTPrompt> {

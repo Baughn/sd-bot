@@ -16,6 +16,7 @@ mod db;
 mod discord;
 mod generator;
 mod gpt;
+mod help;
 mod irc;
 mod utils;
 #[derive(Clone)]

@@ -5,7 +5,7 @@ use irc::client::prelude::*;
 use log::{debug, error, info, trace, warn};
 use tokio_stream::StreamExt;
 
-use crate::{config::IrcConfig, generator::UserRequest, utils, BotContext};
+use crate::{config::IrcConfig, generator::UserRequest, utils, BotContext, help};
 
 pub struct IrcTask {
     context: BotContext,
@@ -61,31 +61,31 @@ impl IrcTask {
                     } else {
                         nick.to_owned()
                     };
-                    if let Some((cmd, params)) = msg.trim().split_once(' ') {
-                        trace!("Command: {}, params: {}", cmd, params);
-                        let context = self.context.clone();
-                        let sender = client.sender();
-                        let target = target.to_owned();
-                        let nick = nick.to_owned();
-                        let cmd = cmd.to_owned();
-                        let params = params.trim().to_owned();
-                        tokio::task::spawn(async move {
-                            if let Err(e) = Self::handle_command(
-                                &context, &sender, &target, &nick, &cmd, &params,
-                            )
-                            .await
+                    let (cmd, params) = match msg.trim().split_once(" ") {
+                        Some((a, b)) => (a, b),
+                        None => (msg.trim(), ""),
+                    };
+                    trace!("Command: {}, params: {}", cmd, params);
+                    let context = self.context.clone();
+                    let sender = client.sender();
+                    let target = target.to_owned();
+                    let nick = nick.to_owned();
+                    let cmd = cmd.to_owned();
+                    let params = params.trim().to_owned();
+                    tokio::task::spawn(async move {
+                        if let Err(e) = Self::handle_command(
+                            &context, &sender, &target, &nick, &cmd, &params,
+                        )
+                        .await
+                        {
+                            error!("Error while handling command: {}", e);
+                            if let Err(e) =
+                                send(&sender, &target, &format!("{}: Error: {}", nick, e)).await
                             {
-                                error!("Error while handling command: {}", e);
-                                if let Err(e) =
-                                    send(&sender, &target, &format!("{}: Error: {}", nick, e)).await
-                                {
-                                    error!("Error while sending error: {}", e);
-                                }
+                                error!("Error while sending error: {}", e);
                             }
-                        });
-                    } else {
-                        warn!("Received command without parameters: {}", msg);
-                    }
+                        }
+                    });
                 }
             }
         }
@@ -113,8 +113,26 @@ impl IrcTask {
                 raw: params.into(),
                 source: crate::generator::Source::Irc,
             },
+            "help" => {
+                let text = help::handler(context, "!", params).await
+                    .context("While creating help")?;
+                // Compose the extra topics on the end.
+                let filled;
+                if text.1.is_empty() {
+                    filled = text.0;
+                } else {
+                    filled = text.0 + "\n\nOther topics:\n" + text.1.into_iter().map(|s| format!("- {}", s)).collect::<Vec<_>>().join("\n").as_str();
+                }
+                // This is verbose. Unconditionally send by PM.
+                if target.starts_with('#') {
+                    send(sender, target, "Sending help by PM.").await?;
+                }
+                send(sender, nick, &filled).await?;
+                return Ok(());
+            }
             _ => return Ok(()),
         };
+        // Only picture generation below here. Other commands return early.
         let mut events = Box::pin(context.image_generator.generate(request).await);
         while let Some(event) = events.next().await {
             trace!("Event: {:?}", event);

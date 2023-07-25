@@ -163,10 +163,12 @@ impl ParsedRequest {
             seed: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as u32,
             ..Default::default()
         };
+        // Parsing outputs.
         let mut linguistic_prompt = vec![];
         let mut supporting_prompt = vec![];
         let mut negative_prompt = vec![];
         
+        // Parsing state.
         let mut last_option = None;
         let mut last_value = None;
         let mut reading_supporting_prompt = false;
