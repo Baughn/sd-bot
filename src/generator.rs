@@ -172,7 +172,11 @@ impl ParsedRequest {
         let mut reading_supporting_prompt = false;
         let mut reading_negative_prompt = false;
 
-        for token in request.raw.split_whitespace() {
+        // For a final pre-processing step, turn — (em dash) into -- (double dash).
+        // Because Apple.
+        let raw = request.raw.replace("—", "--");
+
+        for token in raw.split_whitespace() {
             let mut add_to_prompt = |token| {
                 if reading_supporting_prompt {
                     supporting_prompt.push(token);
