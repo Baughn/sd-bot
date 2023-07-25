@@ -55,9 +55,11 @@ pub struct IrcConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotModelConfig {
+    pub description: String,
     pub workflow: String,
     pub baseline: String,
-    pub refiner: String,
+    pub refiner: Option<String>,
+    pub vae: Option<String>,
     pub default_positive: String,
     pub default_negative: String,
 }

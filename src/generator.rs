@@ -228,6 +228,8 @@ impl ParsedRequest {
         }
 
         // Do some final validation.
+
+
         if config.models.get(&parsed.model_name).is_none() {
             // That model doesn't exist, so... do a Levenshtein distance check.
             let mut best_distance = usize::MAX;
@@ -330,8 +332,9 @@ impl ParsedRequest {
         }
 
         let workflow = workflow
-            .replace("__REFINER_CHECKPOINT__", &json_encode_string(&model_config.refiner))
+            .replace("__REFINER_CHECKPOINT__", &json_encode_string(model_config.refiner.as_ref().unwrap_or(&model_config.baseline)))
             .replace("__BASE_CHECKPOINT__", &json_encode_string(&model_config.baseline))
+            .replace("__VAE__", &json_encode_string(model_config.vae.as_ref().unwrap_or(&"".to_string())))
             .replace("__NEGATIVE_PROMPT__", &json_encode_string(&negative_prompt))
             .replace("__PROMPT_A__", &json_encode_string(&self.linguistic_prompt))
             .replace("__PROMPT_B__", &json_encode_string(&supporting_prompt))

@@ -1,0 +1,154 @@
+{
+  "baseline": {
+    "inputs": {
+      "ckpt_name": "__BASE_CHECKPOINT__"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "vae": {
+    "inputs": {
+      "vae_name": "__VAE__"
+    },
+    "class_type": "VAELoader"
+  },
+  "3": {
+    "inputs": {
+      "seed": __SEED__,
+      "steps": __STEPS_TOTAL__,
+      "cfg": __BASE_CFG__,
+      "sampler_name": "dpmpp_sde_gpu",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "baseline",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "8",
+        0
+      ],
+      "latent_image": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "4": {
+    "inputs": {
+      "width": __WIDTH_d2__,
+      "height": __HEIGHT_d2__,
+      "batch_size": __BATCH_SIZE__
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "5": {
+    "inputs": {
+      "text": "__PROMPT_A__. __PROMPT_B__",
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "6": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "clip": [
+        "baseline",
+        1
+      ]
+    },
+    "class_type": "CLIPSetLastLayer"
+  },
+  "8": {
+    "inputs": {
+      "text": "__NEGATIVE_PROMPT__",
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "12": {
+    "inputs": {
+      "upscale_by": 2,
+      "seed": __SEED__,
+      "steps": __FIRST_PASS_END_AT_STEP__,
+      "cfg": __REFINER_CFG__,
+      "sampler_name": "dpmpp_2m_sde_gpu",
+      "scheduler": "karras",
+      "denoise": 0.35,
+      "mode_type": "Linear",
+      "tile_width": __WIDTH_d2__,
+      "tile_height": __HEIGHT_d2__,
+      "mask_blur": 8,
+      "tile_padding": 32,
+      "seam_fix_mode": "None",
+      "seam_fix_denoise": 1,
+      "seam_fix_width": 64,
+      "seam_fix_mask_blur": 8,
+      "seam_fix_padding": 16,
+      "image": [
+        "13",
+        0
+      ],
+      "model": [
+        "baseline",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "8",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ],
+      "upscale_model": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "UltimateSDUpscale"
+  },
+  "13": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "14": {
+    "inputs": {
+      "model_name": "4x-UltraSharp.pth"
+    },
+    "class_type": "UpscaleModelLoader"
+  },
+  "15": {
+    "inputs": {
+      "filename_prefix": "SDBot",
+      "images": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  }
+}
