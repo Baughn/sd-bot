@@ -25,9 +25,9 @@ channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
 default = "sdxl_0.9"
-"Anime (Fanart / Dynamic)" = "cetusMix_whalefall_v2"
-"Anime (Aesthetics)" = "MeinaMix_v11"
-"WaifuXL (experimental)" = "waifuxl"
+"Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
+"Anime_(Aesthetics)" = "MeinaMix_v11"
+"WaifuXL_(experimental)" = "waifuxl"
 
 [models."sdxl_0.9"]
 description = "The v0.9 research preview of SDXL. This model is incredibly flexible."
