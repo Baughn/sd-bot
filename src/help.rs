@@ -91,7 +91,7 @@ async fn root(context: &BotContext, prefix: &str) -> HelpText {
         - --count (-c) — The number of pictures to generate. You can request up to 16, but this down-prioritizes your request.\n
         \n
         \n
-        You can also use `/help <text>` to ask me questions. I'll try to answer them as best I can.\n"),
+        You can also use `{prefix}help <arbitrary text>` to ask me questions. I'll try to answer them as best I can.\n"),
         children: HashMap::from([
             ("Prompting", prompting(context)),
             ("Models", models(context).await),
@@ -163,7 +163,7 @@ async fn models(context: &BotContext) -> HelpText {
             target = deref;
         }
         let config = models.get(target).expect("Alias points to non-existent model");
-        format!("-m {} ({}) — {}", alias, target, config.description)
+        format!("-m {} ({}) — {}\n", alias, target, config.description)
     });
     text.extend(aliases);
 
@@ -177,7 +177,7 @@ async fn models(context: &BotContext) -> HelpText {
         let models = models.iter().filter(|(_, v)| v.workflow == *workflow).map(|(k, v)| {
             format!("-m {} — {}", k, v.description)
         }).collect::<Vec<_>>();
-        format!("## {}\n{}", workflow, models.join("\n"))
+        format!("\n## {}\n{}", workflow, models.join("\n"))
     });
     text.extend(workflows);
 
