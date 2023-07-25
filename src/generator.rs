@@ -18,6 +18,10 @@ use uuid::Uuid;
 
 use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule};
 
+/// Used to determine if a model name is close enough to a real model name.
+/// And for the tests.
+const SIMILARITY_THRESHOLD: f64 = 0.7;
+
 /// generate() is the entry point for the generator.
 /// It returns a stream of these.
 #[derive(Debug)]
@@ -231,18 +235,18 @@ impl ParsedRequest {
 
 
         if config.models.get(&parsed.model_name).is_none() {
-            // That model doesn't exist, so... do a Levenshtein distance check.
-            let mut best_distance = usize::MAX;
+            // That model doesn't exist, so... do a distance check.
+            let mut best_similarity = 0.0;
             let mut best_model = None;
             for model in config.aliases.keys().chain(config.models.keys()) {
-                let distance = strsim::levenshtein(&parsed.model_name, model);
-                if distance < best_distance {
-                    best_distance = distance;
+                let similarity = strsim::jaro_winkler(&parsed.model_name, model);
+                if similarity > best_similarity {
+                    best_similarity = similarity;
                     best_model = Some(model);
                 }
             }
             if let Some(best_model) = best_model {
-                if best_distance > 2 {
+                if best_similarity < SIMILARITY_THRESHOLD {
                     bail!("Unknown model: {}. Did you mean {}?", parsed.model_name, best_model);
                 } else {
                     parsed.model_name = best_model.clone();
@@ -663,4 +667,44 @@ pub fn choose_random_style() -> &'static str {
     let mut rng = rand::thread_rng();
     let (_, style) = STYLES.choose(&mut rng).unwrap();
     style
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+        
+    fn most_similar(model: &str) -> (f64, String) {
+        let models = [
+            "MeinaMix_v11",
+            "MeinaHentai_v4",
+            "cetusMix_whalefall_v2",
+            "SDXL_0.9",
+        ];
+        let mut best_similarity = 0.0;
+        let mut best_model = None;
+        for other in &models {
+            let similarity = strsim::jaro_winkler(model, other);
+            if similarity > best_similarity {
+                best_similarity = similarity;
+                best_model = Some(other);
+            }
+        }
+        (best_similarity, best_model.unwrap().to_string())
+    }
+
+    fn correct(model: &str, target: &str) {
+        let (similarity, best_model) = most_similar(model);
+        assert!(similarity >= SIMILARITY_THRESHOLD, "model {} is too different from {}: {}", model, best_model, similarity);
+        assert_eq!(best_model, target);
+    }
+
+    /// This test exists to determine the appropriate threshold, chiefly.
+    #[test]
+    fn test_model_similarity_threshold() {
+        correct("MeinaMix_v11", "MeinaMix_v11");
+        correct("meinamix", "MeinaMix_v11");
+        correct("cetusmix", "cetusMix_whalefall_v2");
+        correct("SDXL", "SDXL_0.9");
+    }
 }
