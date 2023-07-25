@@ -124,10 +124,12 @@ impl IrcTask {
                     filled = text.0 + "\n\nOther topics:\n" + text.1.into_iter().map(|s| format!("- {}", s)).collect::<Vec<_>>().join("\n").as_str();
                 }
                 // This is verbose. Unconditionally send by PM.
-                if target.starts_with('#') {
+                if target.starts_with('#') && (filled.len() > 700 || filled.lines().count() > 2) {
                     send(sender, target, "Sending help by PM.").await?;
+                    send(sender, nick, &filled).await?;
+                } else {
+                    send(sender, target, &filled).await?;
                 }
-                send(sender, nick, &filled).await?;
                 return Ok(());
             }
             _ => return Ok(()),
