@@ -52,6 +52,13 @@ baseline = "MeinaMix_v11.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
 
+[models."MeinaHentai_v4"]
+description = "MeinaHentai v4. Good for anatomy... use Danbooru tags."
+workflow = "workflow-sd15-baseonly.json.tmpl"
+baseline = "meinahentai_v4.safetensors"
+default_positive = ""
+default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
+
 [models."cetusMix_whalefall_v2"]
 description = "cetusMix whalefall v2. Good for fanart and dynamic scenes. Use Danbooru tags."
 workflow = "workflow-sd15-vae.json.tmpl"
