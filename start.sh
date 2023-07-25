@@ -28,7 +28,7 @@ export RUST_LOG="${RUST_LOG:-info,sd_bot_2,tracing=warn,serenity=warn}"
 #export RUST_BACKTRACE=1
 
 while true; do
-  nix-shell --run "cargo run --release -- -c config.toml"
+  nix-shell --run "cargo run --release -- -c config.toml" || true
   echo "Bot exited, restarting in 5 seconds..."
   sleep 5
 done
