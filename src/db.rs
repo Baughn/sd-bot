@@ -5,7 +5,7 @@ use std::{sync::Arc, collections::HashSet};
 ///
 use anyhow::{Context, Result};
 
-use log::info;
+use log::{info, trace};
 use rusqlite::Connection;
 use tokio::sync::Mutex;
 
@@ -142,6 +142,7 @@ impl DatabaseModule {
     }
 
     pub async fn mark_changelog_entry_seen(&self, user: &str, hash: &str) -> Result<()> {
+        trace!("Marking changelog entry {} as seen for {}", hash, user);
         let db = self.0.lock().await;
         db.conn
             .execute(

@@ -78,11 +78,11 @@ impl IrcTask {
                         )
                         .await
                         {
-                            error!("Error while handling command: {}", e);
+                            error!("Error while handling command: {:#}", e);
                             if let Err(e) =
-                                send(&sender, &target, &format!("{}: Error: {}", nick, e)).await
+                                send(&sender, &target, &format!("{}: Error: {:#}", nick, e)).await
                             {
-                                error!("Error while sending error: {}", e);
+                                error!("Error while sending error: {:#}", e);
                             }
                         }
                     });
@@ -136,7 +136,7 @@ impl IrcTask {
         };
         // Only picture generation below here. Other commands return early.
         // Before we do anything else, send a new changelog entry! If there is one.
-        if let Some(entry) = crate::changelog::get_new_changelog_entry(context, nick).await? {
+        if let Some(entry) = crate::changelog::get_new_changelog_entry(context, &format!("irc:{nick}")).await? {
             send(sender, target, &format!("{}: {}", nick, entry)).await?;
         }
         let mut events = Box::pin(context.image_generator.generate(request).await);

@@ -5,8 +5,7 @@ CREATE TABLE IF NOT EXISTS Users (
 
 CREATE TABLE IF NOT EXISTS Changelog_viewed (
     user TEXT NOT NULL,
-    seen TEXT NOT NULL,  -- Blake4 hash of seen entries
-    FOREIGN KEY (user) REFERENCES Users(user)
+    seen TEXT NOT NULL  -- Blake4 hash of seen entries
 );
 
 CREATE TABLE IF NOT EXISTS Batches (

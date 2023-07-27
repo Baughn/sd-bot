@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;
+use log::{debug, trace};
 
 use crate::BotContext;
 
@@ -57,36 +58,43 @@ impl ChangelogLine {
 fn parse_changelog() -> Changelog {
     let mut features: HashMap<String, ChangelogFeature> = HashMap::new();
     let mut current_feature = None;
-    let mut current_entry = "".to_string();
-    for line in CHANGELOG_STR.lines() {
-        if let Some(feature) = line.strip_prefix("# ") {
-            current_feature = Some(feature.to_string());
+    let mut current_update = "".to_string();
+
+    fn finish_update(features: &mut HashMap<String, ChangelogFeature>, current_feature: &mut Option<String>, current_update: &mut String) {
+        if current_update.is_empty() {
+            return;
         }
-        let feature = current_feature.as_ref().expect("Bad changelog format");
-        if line.starts_with("* ") {
-            // This is a new entry.
-            if !current_entry.is_empty() {
-                // Finish the previous entry.
-                features.entry(feature.clone()).or_default().updates.push(
-                    ChangelogLine::new(current_entry.clone()),
-                );
-                current_entry = "".to_string();
-            }
+        if let Some(feature) = current_feature {
+            let feature = features.entry(feature.clone()).or_default();
+            feature.updates.push(ChangelogLine::new(current_update.clone()));
         }
-        current_entry.push_str(line);
-        current_entry.push('\n');
+        current_update.clear();
     }
-    // Finish the last entry.
-    features.entry(current_feature.unwrap()).or_default().updates.push(
-        ChangelogLine::new(current_entry.clone()),
-    );
-    // And return.
+
+    for line in CHANGELOG_STR.lines() {
+        trace!("Parsing {line}");
+        if let Some(feature) = line.strip_prefix("# ") {
+            finish_update(&mut features, &mut current_feature, &mut current_update);
+            current_feature = Some(feature.to_string());
+        } else if let Some(line) = line.strip_prefix("- ") {
+            if !current_update.is_empty() {
+                finish_update(&mut features, &mut current_feature, &mut current_update);
+            }
+            current_update = line.to_string(); 
+            current_update += "\n";
+        } else {
+            current_update += line;
+            current_update += "\n";
+        }
+    }
+    finish_update(&mut features, &mut current_feature, &mut current_update);
     Changelog { features }
 }
 
 /// Given a user, returns one changelog update they haven't seen yet. If any.
 /// If they've seen all of them, returns None.
 pub async fn get_new_changelog_entry(context: &BotContext, user: &str) -> Result<Option<String>> {
+    debug!("Checking for new changelog entry for {}", user);
     let seen = context
         .db
         .get_seen_changelog_entries(user)
@@ -102,7 +110,7 @@ pub async fn get_new_changelog_entry(context: &BotContext, user: &str) -> Result
                     .await
                     .context("While marking changelog entry seen")?;
                 // Let's format this a bit.
-                let unseen = format!("{} update: {}", feature_name, unseen);
+                let unseen = format!("{} update:\n{}", feature_name, unseen);
                 return Ok(Some(unseen));
             }
         }
