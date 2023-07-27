@@ -3,10 +3,14 @@ CREATE TABLE IF NOT EXISTS Users (
     settings JSON  -- User settings stored as JSON
 );
 
+CREATE INDEX IF NOT EXISTS Users_user ON Users(user);
+
 CREATE TABLE IF NOT EXISTS Changelog_viewed (
     user TEXT NOT NULL,
     seen TEXT NOT NULL  -- Blake4 hash of seen entries
 );
+
+CREATE INDEX IF NOT EXISTS Changelog_viewed_user ON Changelog_viewed(user);
 
 CREATE TABLE IF NOT EXISTS Batches (
     uuid TEXT PRIMARY KEY,
@@ -18,6 +22,8 @@ CREATE TABLE IF NOT EXISTS Batches (
     gallery TEXT NOT NULL,  -- URL for the image gallery
     FOREIGN KEY (user) REFERENCES Users(user)
 );
+
+CREATE INDEX IF NOT EXISTS Batches_user ON Batches(user);
 
 CREATE TABLE IF NOT EXISTS Images (
     image_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,3 +42,5 @@ CREATE TABLE IF NOT EXISTS Votes (
     FOREIGN KEY (user) REFERENCES Users(user),
     UNIQUE(image_id, user)  -- To ensure a user can't vote more than once on an image
 );
+
+CREATE INDEX IF NOT EXISTS Votes_user ON Votes(user);
