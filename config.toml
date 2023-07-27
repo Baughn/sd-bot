@@ -24,10 +24,18 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "sdxl_0.9"
+default = "sdxl_1.0"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "WaifuXL_(experimental)" = "waifuxl"
+
+[models."sdxl_1.0"]
+description = "The full 1.0 release of SDXL. This model is incredibly flexible."
+workflow = "workflow-sdxl.json.tmpl"
+baseline = "sd_xl_base_1.0.safetensors"
+refiner = "sd_xl_refiner_1.0.safetensors"
+default_positive = ""
+default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast"
 
 [models."sdxl_0.9"]
 description = "The v0.9 research preview of SDXL. This model is incredibly flexible."
