@@ -3,6 +3,12 @@ CREATE TABLE IF NOT EXISTS Users (
     settings JSON  -- User settings stored as JSON
 );
 
+CREATE TABLE IF NOT EXISTS Changelog_viewed (
+    user TEXT,
+    seen TEXT NOT NULL  -- Blake4 hash of seen entries
+    FOREIGN KEY (user) REFERENCES Users(user)
+)
+
 CREATE TABLE IF NOT EXISTS Batches (
     uuid TEXT PRIMARY KEY,
     original_prompt TEXT,  -- Original prompt used by GPT-4, if applicable

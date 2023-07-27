@@ -11,6 +11,7 @@ use crate::{
     gpt::GPTPromptGeneratorModule,
 };
 
+mod changelog;
 mod config;
 mod db;
 mod discord;

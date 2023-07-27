@@ -135,6 +135,10 @@ impl IrcTask {
             _ => return Ok(()),
         };
         // Only picture generation below here. Other commands return early.
+        // Before we do anything else, send a new changelog entry! If there is one.
+        if let Some(entry) = crate::changelog::get_new_changelog_entry(context, nick).await? {
+            send(sender, target, &format!("{}: {}", nick, entry)).await?;
+        }
         let mut events = Box::pin(context.image_generator.generate(request).await);
         while let Some(event) = events.next().await {
             trace!("Event: {:?}", event);

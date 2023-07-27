@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashSet};
 
 /// This wraps a simple sqlite database.
 /// The database stores per-user settings and a log of generated images.
@@ -124,5 +124,31 @@ impl DatabaseModule {
         } else {
             Ok(None)
         }
+    }
+
+    pub async fn get_seen_changelog_entries(&self, user: &str) -> Result<HashSet<String>> {
+        // The hashes are stored as the seen column in the Changelog_viewed table.
+        let db = self.0.lock().await;
+        let mut stmt = db
+            .conn
+            .prepare("SELECT seen FROM changelog_viewed WHERE user = ?")?;
+        let mut rows = stmt.query([user])?;
+        let mut seen = HashSet::new();
+        while let Some(row) = rows.next()? {
+            let seen_str: String = row.get(0).context("failed to get seen")?;
+            seen.insert(seen_str);
+        }
+        Ok(seen)
+    }
+
+    pub async fn mark_changelog_entry_seen(&self, user: &str, hash: &str) -> Result<()> {
+        let db = self.0.lock().await;
+        db.conn
+            .execute(
+                "INSERT INTO changelog_viewed (user, seen) VALUES (?, ?)",
+                [user, hash],
+            )
+            .context("failed to insert changelog entry")?;
+        Ok(())
     }
 }
