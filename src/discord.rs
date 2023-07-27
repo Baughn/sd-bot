@@ -66,15 +66,6 @@ impl Handler {
             .await;
         let cmd = command.data.name.trim_start_matches(&cprefix);
         let mention_user = command.user.mention();
-        // While all of this is going on, send a changelog entry (if there is one).
-        if let Some(entry) = changelog::get_new_changelog_entry(&self.context, mention_user.to_string().as_str()).await? {
-            command
-                .create_followup_message(&ctx.http, |message| {
-                    message.content(format!("{} New changelog entry:\n{}", mention_user, entry))
-                    .ephemeral(true)
-                })
-                .await?;
-        }
         // Continue with the command.
         let request = match cmd {
             "dream" => {
@@ -192,13 +183,18 @@ impl Handler {
         // Once the generation is complete, we send a followup message with the
         // results.
         let mut status_text = if let Some(dream) = request.dream {
-            format!("Dreaming based on `{}`", dream)
+            vec![format!("Dreaming based on `{}`", dream)]
         } else {
-            format!("Dreaming about `{}`", request.raw)
+            vec![format!("Dreaming about `{}`", request.raw)]
         };
 
+        // However, we might want to stick a changelog entry in there.
+        if let Some(changelog_entry) = changelog::get_new_changelog_entry(&self.context, &request.user).await? {
+            status_text.push(format!("\n{changelog_entry}"));
+        }
+
         statusbox
-            .edit(&ctx.http, |message| message.content(&status_text))
+            .edit(&ctx.http, |message| message.content(&status_text.join("\n")))
             .await
             .context("Creating initial response")?;
 
@@ -206,48 +202,46 @@ impl Handler {
             trace!("Event: {:?}", event);
             match event {
                 GenerationEvent::GPTCompleted(c) => {
-                    status_text = format!(
+                    status_text[0] = format!(
                         "Dreaming about `{}`\nBased on `{}`",
                         c.raw,
                         c.dream.unwrap()
                     );
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
                 }
                 GenerationEvent::Parsed(_) => (
                     // TODO: Implement this.
                 ),
                 GenerationEvent::Queued(n) => {
                     if n > 0 {
-                        status_text.push_str(&format!("\nQueued at position {n}"));
-                        statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
+                        status_text.insert(1, format!("Queued at position {}", n));
+                        statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
                     }
                 }
                 GenerationEvent::Generating(percent) => {
                     // Erase the Queued line, or a previous Generating line.
-                    status_text = status_text
-                        .lines()
+                    // This should be index 1, but we'll just filter them all out.
+                    status_text = status_text.into_iter()
                         .filter(|l| !(l.starts_with("Queued") || l.starts_with("Generating")))
-                        .collect::<Vec<_>>()
-                        .join("\n");
+                        .collect();
                     // Add the new Generating line.
-                    status_text.push_str(&format!("\nGenerating ({}%)", percent));
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
+                    status_text.insert(1, format!("Generating ({}%)", percent));
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
                 }
                 GenerationEvent::Error(e) => {
                     // There was an error.
                     let err = format!("\n\n{} Error: {:#}", mention_user, e);
                     let err = utils::segment_one(&err, 1800);
-                    status_text.push_str(&err);
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
+                    status_text.push(err);
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
                 }
                 GenerationEvent::Completed(c) => {
-                    // Before anything else, let's update the status message.
-                    status_text = format!(
-                        "Dreamed about `{}`\nGenerated {} images; now uploading",
-                        c.base.base.raw,
-                        c.images.len()
-                    );
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text)).await?;
+                    // Filter out Queued or Generating, again. But also Dreaming.
+                    status_text = status_text.into_iter()
+                        .filter(|l| !(l.starts_with("Dreaming") || l.starts_with("Queued") || l.starts_with("Generating")))
+                        .collect();
+                    status_text.insert(0, format!("Dreamed about `{}`\nGenerated {} images; now uploading", c.base.base.raw, c.images.len()));
+                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
 
                     // Add images to the database & upload them.
                     let gallery_geometry = utils::gallery_geometry(c.images.len());
@@ -301,7 +295,13 @@ impl Handler {
                     .await
                     .context("Posting pictures")?;
                     // When all is said and done, delete the statusbox.
+                    // But wait if it contains a changelog update.
+                    if status_text.len() > 1 {
+                        debug!("Deferring statusbox deletion");
+                        tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
+                    }
                     statusbox.delete(&ctx.http).await.context("Deleting status message")?;
+                    debug!("Deleted statusbox");
                 }
             }
         }
