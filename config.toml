@@ -45,6 +45,13 @@ refiner = "sd_xl_refiner_0.9.safetensors"
 default_positive = ""
 default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast"
 
+[models."AstreaPixie"]
+description = "AstreaPixie Radiance v1.6"
+workflow = "workflow-sd15-baseonly.json.tmpl"
+baseline = "AstreaPixie_Radiance_v1.6.safetensors"
+default_positive = "embedding:fcportrait"
+default_negative = "embedding:fcneg"
+
 [models.waifuxl]
 description = "Research preview of WaifuXL. This model is experimental and may produce strange results."
 workflow = "workflow-sdxl.json.tmpl"
