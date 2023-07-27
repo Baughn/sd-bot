@@ -18,7 +18,7 @@ use tokio_stream::StreamExt;
 
 use crate::{
     generator::{self, GenerationEvent, UserRequest},
-    utils, BotContext,
+    utils, BotContext, changelog,
 };
 
 pub struct DiscordTask {
@@ -66,6 +66,16 @@ impl Handler {
             .await;
         let cmd = command.data.name.trim_start_matches(&cprefix);
         let mention_user = command.user.mention();
+        // While all of this is going on, send a changelog entry (if there is one).
+        if let Some(entry) = changelog::get_new_changelog_entry(&self.context, mention_user.to_string().as_str()).await? {
+            command
+                .create_followup_message(&ctx.http, |message| {
+                    message.content(format!("{} New changelog entry:\n{}", mention_user, entry))
+                    .ephemeral(true)
+                })
+                .await?;
+        }
+        // Continue with the command.
         let request = match cmd {
             "dream" => {
                 let prompt = command
