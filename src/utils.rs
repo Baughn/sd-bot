@@ -173,14 +173,30 @@ pub fn segment_lines(text: &str, length_limit: usize) -> Vec<&str> {
         .flat_map(|line| {
             let mut lines = vec![];
             let mut remaining = line;
-            while !remaining.is_empty() {
+            loop {
                 let (first, rest) = break_line(remaining, length_limit);
                 lines.push(first);
                 remaining = rest;
+                if remaining.is_empty() {
+                    break;
+                }
             }
             lines
         })
         .collect()
+}
+
+/// Like segment_lines, but tries to return multi-line segments of at most `length_limit` characters.
+pub fn segment_lines_condensed(text: &str, length_limit: usize) -> Vec<String> {
+    let mut segments = vec![String::new()];
+    for line in segment_lines(text, length_limit) {
+        if segments.last().unwrap().len() + line.len() > length_limit {
+            segments.push(String::new());
+        }
+        segments.last_mut().unwrap().push_str(line);
+        segments.last_mut().unwrap().push('\n');
+    }
+    segments
 }
 
 /// Segment a string, discarding all but the first segment.

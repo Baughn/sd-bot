@@ -76,22 +76,22 @@ fn full_text(text: &HelpText, depth: usize, position: &str) -> String {
 
 async fn root(context: &BotContext, prefix: &str) -> HelpText {
     HelpText {
-        text: format!("Welcome to the GANBot help system. Here's what I can do:\n
-        - `{prefix}help` - This help system.\n
-        - `{prefix}prompt` - Image-generation from a text prompt. You can choose model, aspect ratio and so on freely. Click the button to see the full explanation.\n
-        - `{prefix}dream` - Image-generation from a loose description, using GPT-4 to fill in the blanks. This only works with the (highly flexible) baseline SDXL model; I recommend you use the output as a guide for how to start on your own prompts.\n
-        - `{prefix}settings` - Configure the bot's behavior. This is a work in progress.\n
-        \n
-        Common flags for /prompt:\n
-        - --style — The style to feed into the model; affects everything after the flag. See the Prompting help section for more information.\n
-        -- --no — Things to avoid; affects everything after the flag. See the Prompting help section for more information.\n
-        - --model (-m) — The model to use. Defaults to SDXL. Every model has a different set of capabilities, but SDXL is by far the most flexible.\n
-        - --ar — The aspect ratio to use. Defaults to 1:1.\n
-        - --seed (-s) — The seed to use. Defaults to a random number, but you should set this to a specific value when comparing prompts\n
-        - --count (-c) — The number of pictures to generate. You can request up to 16, but this down-prioritizes your request.\n
-        \n
-        \n
-        You can also use `{prefix}help <arbitrary text>` to ask me questions. I'll try to answer them as best I can.\n"),
+        text: format!("Welcome to the GANBot help system. Here's what I can do:
+        - `{prefix}help` - This help system.
+        - `{prefix}prompt` - Image-generation from a text prompt. You can choose model, aspect ratio and so on freely. Click the button to see the full explanation.
+        - `{prefix}dream` - Image-generation from a loose description, using GPT-4 to fill in the blanks. This only works with the (highly flexible) baseline SDXL model; I recommend you use the output as a guide for how to start on your own prompts.
+        - `{prefix}settings` - Configure the bot's behavior. This is a work in progress.
+        
+        Common flags for /prompt:
+        - --style — The style to feed into the model; affects everything after the flag. See the Prompting help section for more information.
+        -- --no — Things to avoid; affects everything after the flag. See the Prompting help section for more information.
+        - --model (-m) — The model to use. Defaults to SDXL. Every model has a different set of capabilities, but SDXL is by far the most flexible.
+        - --ar — The aspect ratio to use. Defaults to 1:1.
+        - --seed (-s) — The seed to use. Defaults to a random number, but you should set this to a specific value when comparing prompts
+        - --count (-c) — The number of pictures to generate. You can request up to 16, but this down-prioritizes your request.
+        
+        
+        You can also use `{prefix}help <arbitrary text>` to ask me questions. I'll try to answer them as best I can."),
         children: HashMap::from([
             ("Prompting", prompting(context)),
             ("Models", models(context).await),
@@ -104,44 +104,31 @@ async fn root(context: &BotContext, prefix: &str) -> HelpText {
 fn prompting(_context: &BotContext) -> HelpText {
     HelpText {
         children: HashMap::new(),
-        text: "Prompting is the process of narrowing down an image-generation\n
-        input that gives you the picture you wanted, or at least something vaguely close.\n
-        The 'ideal' prompt depends on the model you've selected, but in general there are\n
-        three different types of models—and hence prompts—that you'll need to keep in mind.\n
-        \n
-        SDXL-based models: The default, and frankly easiest to use. SDXL understands simple english; you can tell it\n
-        \"A red-haired girl standing next to a green-haired boy\" and it'll do its best to give you that. It's not perfect,\n
-        Like every image-generation model, it's likely that you'll need to try a few different prompts before you get\n
-        something you like. But it's a good starting point.\n
-        \n
-        Unlike the newer SD 1.5 models, SDXL lacks any highly refined models trained for aesthetics. The base model,\n
-        flexible as it is, is equally capable of producing good and bad results. If you're not getting the quality you\n
-        wanted, ask yourself if your prompt belongs as the title of a painting... or as the caption of a low-quality piece\n
-        of fanart. If it's the latter, you might want to try feeding it through /dream. Or try a different model.\n
-        \n
-        Avoid pronouns and other placeholder words. In a sentence like \"A girl and her red jacket\", it's not smart enough to
-        understand that the jacket belongs to the girl. \"A girl wearing a red jacket\" is better.\n
-        \n
-        SDXL-based models actually have two text encoders, one that understands English and one that understands tags.\n
-        The second one is more finicky, but it's what --style feeds into (if you're using one), and it can give good results.\n
-        \n
-        The /dream command is tuned to give you good prompts for SDXL-based models.\n
-        \n
-        ======\n
-        \n
-        SD 1.5 anime-style models: These models are a bit more finicky. They're trained on a very specific set of prompts,\n
-        namely tags from the Danbooru dataset. English doesn't work well; use prompts like \"blue hair, red eyes, 1girl\" instead.\n
-        You can find a list of tags by searching on http://danbooru.donmai.us, but bear in mind that the model is trained on\n
-        only those tags with at least a few hundred images. If you're not getting the results you want, try adding more tags.\n
-        \n
-        A few 1.5 anime models, most notably Counterfeit 3.0, were trained on BLIP2 captions as well and have a semi-functional\n
-        understanding of English. You can try using English prompts with these models, but don't expect miracles.\n
-        \n
-        ======\n
-        \n
-        SD 1.5 photorealistic models: The lineage of these models doesn't include Danbooru, so they don't understand tags.\n
-        Instead they understand English... about as well as the --style encoder for SDXL-based models. You should try\n
-        sticking to *very* simple English.
+        text: "Prompting is the process of narrowing down an image-generation input that gives you the picture you wanted, or at least something vaguely close. The 'ideal' prompt depends on the model you've selected, but in general there are three different types of models—and hence prompts—that you'll need to keep in mind.
+        
+        SDXL-based models: The default, and frankly easiest to use. SDXL understands simple english; you can tell it \"A red-haired girl standing next to a green-haired boy\" and it'll do its best to give you that. It's not perfect, Like every image-generation model, it's likely that you'll need to try a few different prompts before you get something you like. But it's a good starting point.
+        
+        Unlike the newer SD 1.5 models, SDXL lacks any highly refined models trained for aesthetics. The base model, flexible as it is, is equally capable of producing good and bad results. If you're not getting the quality you wanted, ask yourself if your prompt belongs as the title of a painting... or as the caption of a low-quality piece of fanart. If it's the latter, you might want to try feeding it through /dream. Or try a different model.
+        
+        Avoid pronouns and other placeholder words. In a sentence like \"A girl and her red jacket\", it's not smart enough to understand that the jacket belongs to the girl. \"A girl wearing a red jacket\" is better.
+        
+        SDXL-based models actually have two text encoders, one that understands English and one that understands tags. The second one is more finicky, but it's what --style feeds into (if you're using one), and it can give good results.
+        
+        The /dream command is tuned to give you good prompts for SDXL-based models.
+        
+        ======
+        
+        SD 1.5 anime-style models: These models are a bit more finicky. They're trained on a very specific set of prompts, namely tags from the Danbooru dataset. English doesn't work well; use prompts like \"blue hair, red eyes, 1girl\" instead. You can find a list of tags by searching on http://danbooru.donmai.us, but bear in mind that the model is trained on only those tags with at least a few hundred images. If you're not getting the results you want, try adding more tags.
+        
+        A few 1.5 anime models, most notably Counterfeit 3.0, were trained on BLIP2 captions as well and have a semi-functional understanding of English. You can try using English prompts with these models, but don't expect miracles.
+        
+        ======
+        
+        SD 1.5 photorealistic models: The lineage of these models doesn't include Danbooru, so they don't understand tags. Instead they understand English... about as well as the --style encoder for SDXL-based models. You should try sticking to *very* simple English.
+
+        ======
+
+        Besides all of that? ***Experiment.*** Prompting is an art, not a science. You'll get better at it with practice.
         ".to_string()
     }
 }

@@ -3,7 +3,7 @@ use log::{debug, error, info, trace};
 
 use serenity::{
     async_trait,
-    builder::CreateActionRow,
+    builder::{CreateActionRow, CreateComponents},
     model::prelude::{
         application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
         command::{Command, CommandOptionType},
@@ -18,7 +18,7 @@ use tokio_stream::StreamExt;
 
 use crate::{
     generator::{self, GenerationEvent, UserRequest},
-    utils, BotContext, changelog,
+    utils, BotContext, changelog, help,
 };
 
 pub struct DiscordTask {
@@ -29,7 +29,6 @@ pub struct DiscordTask {
 struct Handler {
     context: BotContext,
     action_buttons: CreateActionRow,
-    yes_no_buttons: CreateActionRow,
 }
 
 impl DiscordTask {
@@ -319,6 +318,55 @@ impl Handler {
             .custom_id
             .split_once('.')
             .unwrap_or((component.data.custom_id.as_str(), ""));
+        info!("Received command \"{command}\"");
+        if command.starts_with("help") {
+            // Display help. Though, which help?
+            info!("Received help request for {}", params);
+            let (text, further_help) = help::handler(&self.context, "/", params).await
+                .context("While creating help")?;
+            // We'll stick the extra topics on the end, as components.
+            let mut components = vec![];
+            let mut row = CreateActionRow::default();
+            for topic in further_help {
+                row = row.create_button(|b| {
+                    b.style(ButtonStyle::Primary)
+                        .label(topic)
+                        .custom_id(format!("{}.{}", command, topic))
+                }).clone();
+                if row.0.len() >= 5 {
+                    components.push(row);
+                    row = CreateActionRow::default();
+                }
+            }
+            if !row.0.is_empty() {
+                components.push(row);
+            }
+            // Send the message, as a followup.
+            // Or possibly multiple followups. Let's start by splitting it.
+            let texts = utils::segment_lines_condensed(&text, 1800);
+            if let Some((last, prefix)) = texts.split_last() {
+                // Send the non-last messages.
+                for text in prefix {
+                    println!("Sending help message: {}", text);
+                    component
+                        .create_followup_message(&ctx.http, |message| {
+                            message.content(text).ephemeral(true)
+                        })
+                        .await
+                        .context("Sending help message")?;
+                }
+                // And the last message, with components.
+                component
+                    .create_followup_message(&ctx.http, |message| {
+                        message.content(last).components(|c|
+                            components.into_iter().fold(c, |c, r| c.add_action_row(r))
+                        ).ephemeral(true)
+                    })
+                    .await
+                    .context("Sending help message")?;
+            }
+            return Ok(());
+        }
         match command {
             "delete" => {
                 // Just delete it.
@@ -426,16 +474,15 @@ impl Handler {
                     .label("Retry")
                     .custom_id("retry")
             })
-            .clone();
-
-        let yes_no_buttons = CreateActionRow::default()
-            .create_button(|b| b.style(ButtonStyle::Danger).label("Yes").custom_id("yes"))
-            .create_button(|b| b.style(ButtonStyle::Primary).label("No").custom_id("no"))
+            .create_button(|b| {
+                b.style(ButtonStyle::Primary)
+                    .label("Help")
+                    .custom_id("help")
+            })
             .clone();
 
         Self {
             action_buttons,
-            yes_no_buttons,
             context,
         }
     }
