@@ -387,12 +387,13 @@ impl Handler {
                     .first()
                     .context("Expected an embed")?;
                 let url = embed.url.as_ref().context("Expected an embed with a url")?;
-                // This should end in ".0.jpg", and we'll replace the 0.
-                if let Some((prefix, suffix)) = url.rsplit_once("0.jpg") {
+                // This should end in ".0.EXT", and we'll replace the 0.
+                // Might be jpg, might be png, might be webp.
+                if let Some((prefix, suffix)) = url.rsplit_once(".0.") {
                     if !suffix.is_empty() {
-                        bail!("Expected url to end in 0.jpg");
+                        bail!("Expected url to end in .0.foo");
                     }
-                    let new_url = format!("{}{}.jpg", prefix, params);
+                    let new_url = format!("{}.{}.{}", prefix, params, suffix);
                     debug!("Replacing {} with {}", url, new_url);
                     // Send a new message with the new url.
                     component
@@ -402,7 +403,7 @@ impl Handler {
                         .await
                         .context("Sending new message")?;
                 } else {
-                    bail!("Expected url to end in 0.jpg");
+                    bail!("Expected url to end in .0.foo");
                 }
             },
             "retry" | "restyle" => {
