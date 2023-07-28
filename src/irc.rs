@@ -155,7 +155,7 @@ impl IrcTask {
                     send(sender, target, &format!("{}: {}", nick, urls[0])).await?;
                 }
                 crate::generator::GenerationEvent::Error(e) => {
-                    send(sender, target, &format!("{}: Error: {}", nick, e)).await?;
+                    send(sender, target, &format!("{}: Error: {:#}", nick, e)).await?;
                 }
                 crate::generator::GenerationEvent::GPTCompleted(req) => {
                     send(

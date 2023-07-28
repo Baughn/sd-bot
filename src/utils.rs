@@ -17,20 +17,20 @@ pub fn gallery_geometry(image_count: usize) -> (u32, u32) {
     (width, height)
 }
 
-/// Given a bunch of JPEGs, generates a tiled overview of them.
+/// Given a bunch of PNGs, generates a tiled overview of them.
 /// This is used to 'subtly' encourage people to use the upsize buttons.
-pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
+pub fn overview_of_pictures(pngs: &[Vec<u8>]) -> Result<Vec<u8>> {
     const BORDER: u32 = 8;
     // Parse the JPEGs.
-    let images = jpegs
+    let images = pngs
         .iter()
         .map(|jpeg| {
             image::load_from_memory(jpeg)
-                .context("failed to parse JPEG")
+                .context("failed to parse PNG")
                 .map(|image| image.to_rgb8())
         })
         .collect::<Result<Vec<_>>>()
-        .context("failed to parse JPEGs")?;
+        .context("failed to parse PNGs")?;
     if let Some(sample) = images.first() {
         // Decide on a color for the border.
         // We'll use the average color of all the images.
@@ -77,14 +77,14 @@ pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
                 .copy_from(image, x, y)
                 .context("failed to copy image")?;
         }
-        // Encode the overview as JPEG.
+        // Encode the overview.
         let mut output = Vec::new();
         overview
             .write_to(
                 &mut Cursor::new(&mut output),
-                image::ImageOutputFormat::Jpeg(90),
+                image::ImageOutputFormat::WebP,
             )
-            .context("failed to encode JPEG")?;
+            .context("failed to encode WebP")?;
         Ok(output)
     } else {
         bail!("No images");
@@ -93,43 +93,48 @@ pub fn overview_of_pictures(jpegs: &[Vec<u8>]) -> Result<Vec<u8>> {
 
 pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Vec<u8>>) -> Result<Vec<String>> {
     let mut urls = Vec::new();
-    for (i, data) in images.iter().enumerate() {
-        let filename = format!("{}.{}.jpg", uuid, i);
-        info!("Uploading {} bytes to {}", data.len(), filename);
-        // Save the image to a temporary file.
-        let tmp = tempfile::NamedTempFile::new().context("failed to create temporary file")?;
-        tmp.as_file()
-            .write_all(data)
-            .context("failed to write temporary file")?;
-        tmp.as_file()
-            .set_permissions(PermissionsExt::from_mode(0o644))
-            .context("failed to chmod temporary file")?;
-        // We'll just call scp directly. It's not like we're going to be uploading a lot of images.
-        let (host, webdir, relative) = {
-            config
-                .with_config(|c| {
-                    (
-                        c.backend.webhost.clone(),
-                        c.backend.webdir.clone(),
-                        c.backend.webdir_internal.clone(),
-                    )
-                })
-                .await
-        };
-        let mut command = tokio::process::Command::new("scp");
-        command
-            .env_remove("LD_PRELOAD") // SSH doesn't like tcmalloc.
-            .arg("-F")
-            .arg("None") // Don't read ~/.ssh/config.
-            .arg("-p") // Preserve access bits.
-            .arg(tmp.path())
-            .arg(format!("{host}:{webdir}/{relative}/{filename}"));
-        debug!("Running {:?}", &command);
-        let status = command.status().await.context("failed to run scp")?;
-        if !status.success() {
-            bail!("scp failed: {}", status);
-        }
-
+    // First, we save the images to temporary files.
+    let tmp = tempfile::Builder::new()
+        .prefix("GANBot")
+        .tempdir()
+        .context("failed to create temporary directory")?;
+    info!("Uploading {} bytes in {} images", images.iter().map(|i| i.len()).sum::<usize>(), images.len());
+    let temporaries = images.into_iter().enumerate().map(|(i, data)| {
+        // These should all be webps. We'll assume.
+        let filename = format!("{}.{}.webp", uuid, i);
+        let path = tmp.path().join(&filename);
+        std::fs::write(&path, data).context("failed to write temporary file")?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).context("failed to chmod temporary file")?;
+        anyhow::Ok((filename, path))
+    }).collect::<Result<Vec<_>>>().context("failed to write temporary files")?;
+    // Then upload them all at once, using scp.
+    let (host, webdir, relative) = {
+        config
+            .with_config(|c| {
+                (
+                    c.backend.webhost.clone(),
+                    c.backend.webdir.clone(),
+                    c.backend.webdir_internal.clone(),
+                )
+            })
+            .await
+    };
+    let mut command = tokio::process::Command::new("scp");
+    command
+        .env_remove("LD_PRELOAD") // SSH doesn't like tcmalloc.
+        .arg("-F")
+        .arg("None") // Don't read ~/.ssh/config.
+        .arg("-p"); // Preserve access bits.
+    for (_, path) in &temporaries {
+        command.arg(path);
+    }
+    command.arg(format!("{host}:{webdir}/{relative}/"));
+    debug!("Running {:?}", &command);
+    let status = command.status().await.context("failed to run scp")?;
+    if !status.success() {
+        bail!("scp failed: {}", status);
+    }
+    for (filename, _) in temporaries {
         urls.push(format!("https://{host}/{relative}/{filename}"));
     }
 
@@ -252,4 +257,14 @@ mod tests {
             assert!(height + 1 >= width);
         }
     }
+}
+
+/// Parses a serialized iamge (JPG, PNG, etc) and converts it to a WebP.
+pub fn convert_to_webp(image: Vec<u8>) -> Result<Vec<u8>> {
+    let image = image::load_from_memory(&image).context("failed to parse image")?;
+    let mut output = Vec::new();
+    image
+        .write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::WebP)
+        .context("failed to encode WebP")?;
+    Ok(output)
 }

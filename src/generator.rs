@@ -16,7 +16,7 @@ use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 use uuid::Uuid;
 
-use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule};
+use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule, utils};
 
 /// Used to determine if a model name is close enough to a real model name.
 /// And for the tests.
@@ -238,8 +238,6 @@ impl ParsedRequest {
         }
 
         // Do some final validation.
-
-
         if config.models.get(&parsed.model_name).is_none() {
             // That model doesn't exist, so... do a distance check.
             let mut best_similarity = 0.0;
@@ -501,7 +499,7 @@ impl ImageGeneratorModule {
                 .await
                 .context("failed to download image")?
                 .bytes().await.context("failed to read image")?;
-            final_images.push(image.into());
+            final_images.push(utils::convert_to_webp(image.into()).context("failed to convert image")?);
         }
 
         Ok(final_images)
