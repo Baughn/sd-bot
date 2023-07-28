@@ -387,24 +387,15 @@ impl Handler {
                     .first()
                     .context("Expected an embed")?;
                 let url = embed.url.as_ref().context("Expected an embed with a url")?;
-                // This should end in ".0.EXT", and we'll replace the 0.
-                // Might be jpg, might be png, might be webp.
-                if let Some((prefix, suffix)) = url.rsplit_once(".0.") {
-                    if !suffix.is_empty() {
-                        bail!("Expected url to end in .0.foo");
-                    }
-                    let new_url = format!("{}.{}.{}", prefix, params, suffix);
-                    debug!("Replacing {} with {}", url, new_url);
-                    // Send a new message with the new url.
-                    component
-                        .create_followup_message(&ctx.http, |message| {
-                            message.content(new_url)
-                        })
-                        .await
-                        .context("Sending new message")?;
-                } else {
-                    bail!("Expected url to end in .0.foo");
-                }
+                let replacement = utils::get_individual_url(url, params)?;
+                debug!("Replacing {} with {}", url, replacement);
+                // Send a new message with the new url.
+                component
+                    .create_followup_message(&ctx.http, |message| {
+                        message.content(replacement)
+                    })
+                    .await
+                    .context("Sending new message")?;
             },
             "retry" | "restyle" => {
                 // First, we need to retrieve the original generation parameters from the database.

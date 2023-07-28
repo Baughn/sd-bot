@@ -225,9 +225,47 @@ pub fn hash(text: &str) -> String {
     hash.to_string()
 }
 
+/// Parses a serialized iamge (JPG, PNG, etc) and converts it to a WebP.
+pub fn convert_to_webp(image: Vec<u8>) -> Result<Vec<u8>> {
+    let image = image::load_from_memory(&image).context("failed to parse image")?;
+    let mut output = Vec::new();
+    image
+        .write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::WebP)
+        .context("failed to encode WebP")?;
+    Ok(output)
+}
+
+pub fn get_individual_url(url: &str, replacement: &str) -> Result<String> {
+    // This should end in ".0.EXT", and we'll replace the 0.
+    // Might be jpg, might be png, might be webp.
+    if let Some((prefix, suffix)) = url.rsplit_once(".0.") {
+        let new_url = format!("{}.{}.{}", prefix, replacement, suffix);
+        debug!("Replacing {} with {}", url, new_url);
+        Ok(new_url)
+    } else {
+        bail!("Expected url to end in .0.foo");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_get_individual_url() {
+        assert_eq!(
+            get_individual_url("https://example.com/123.0.jpg", "456").unwrap(),
+            "https://example.com/123.456.jpg"
+        );
+        assert_eq!(
+            get_individual_url("https://example.com/123.0.png", "456").unwrap(),
+            "https://example.com/123.456.png"
+        );
+        assert_eq!(
+            get_individual_url("https://example.com/123.0.webp", "456").unwrap(),
+            "https://example.com/123.456.webp"
+        );
+    }
 
     #[test]
     fn test_segment_short() {
@@ -257,14 +295,4 @@ mod tests {
             assert!(height + 1 >= width);
         }
     }
-}
-
-/// Parses a serialized iamge (JPG, PNG, etc) and converts it to a WebP.
-pub fn convert_to_webp(image: Vec<u8>) -> Result<Vec<u8>> {
-    let image = image::load_from_memory(&image).context("failed to parse image")?;
-    let mut output = Vec::new();
-    image
-        .write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::WebP)
-        .context("failed to encode WebP")?;
-    Ok(output)
 }
