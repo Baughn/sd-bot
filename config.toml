@@ -34,8 +34,8 @@ default = "sdxl_1.0"
 description = "The very first anime-style model for SDXL. Quality may vary."
 workflow = "workflow-sdxl-norefiner.json.tmpl"
 baseline = "anime_art_diffusion_xl_alpha2.safetensors"
-default_positive = "Anime screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
-default_negative = "embedding:fastnegativev2"
+default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
+default_negative = "embedding:fastnegativev2, plastic, bad quality, doll"
 
 [models."sdxl_1.0"]
 description = "The full 1.0 release of SDXL. This model is incredibly flexible."
