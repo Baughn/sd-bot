@@ -7,3 +7,5 @@
 - SDXL 1.0 is out, and now the default model. 0.9 is still available as `-m sdxl_0.9`.
 - Added AstraeaPixie_Radiance v1.6 as `-m AstraeaPixie`.
   This is tuned for high quality anime portraits, but becomes a more vanilla model with --np.
+- The first SDXL anime model, https://civitai.com/models/117259/anime-art-diffusion-xl, is out.
+  This is now available as `-m anime_art_xl_alpha2` or (currently) `-m Anime_XL`.
