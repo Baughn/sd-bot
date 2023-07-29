@@ -555,8 +555,10 @@ impl ImageGeneratorModule {
         let mut highest_score = NEG_INFINITY;
         let mut highest_index = 0;
         for (i, (request, _)) in queue.iter().enumerate() {
-            let score = request.score(previous_request);
-            // By preferring later requests, we implement LIFO. Ish.
+            // TODO: This is a very simple scoring function.
+            // It should be improved.
+            // Currently: Prefers older requests, prefers requests with the same model, prefers requests with different users.
+            let score = request.score(previous_request) - i as f32;
             if score >= highest_score {
                 highest_score = score;
                 highest_index = i;
