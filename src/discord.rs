@@ -3,13 +3,13 @@ use log::{debug, error, info, trace};
 
 use serenity::{
     async_trait,
-    builder::{CreateActionRow, CreateComponents},
+    builder::{CreateActionRow, CreateInputText},
     model::prelude::{
         application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
         command::{Command, CommandOptionType},
-        component::ButtonStyle,
+        component::{ButtonStyle, ActionRowComponent},
         message_component::MessageComponentInteraction,
-        *,
+        *, modal::ModalSubmitInteraction,
     },
     prelude::*,
 };
@@ -17,8 +17,9 @@ use serenity::{
 use tokio_stream::StreamExt;
 
 use crate::{
+    changelog,
     generator::{self, GenerationEvent, UserRequest},
-    utils, BotContext, changelog, help,
+    help, utils, BotContext,
 };
 
 pub struct DiscordTask {
@@ -95,25 +96,17 @@ impl Handler {
                 for option in &command.data.options {
                     match option.name.as_str() {
                         "prompt" => {
-                            prompt = option
-                                .resolved
-                                .as_ref();
-                        },
+                            prompt = option.resolved.as_ref();
+                        }
                         "style" => {
-                            style = option
-                                .resolved
-                                .as_ref();
-                        },
+                            style = option.resolved.as_ref();
+                        }
                         "ar" => {
-                            ar = option
-                                .resolved
-                                .as_ref();
-                        },
+                            ar = option.resolved.as_ref();
+                        }
                         "model" => {
-                            model = option
-                                .resolved
-                                .as_ref();
-                        },
+                            model = option.resolved.as_ref();
+                        }
                         unknown => {
                             bail!("Unknown option: {}", unknown);
                         }
@@ -162,21 +155,27 @@ impl Handler {
                     dream: None,
                     source: generator::Source::Discord,
                 }
-            },
+            }
             x => bail!("Unknown command: {}", x),
         };
 
-        let statusbox = command.edit_original_interaction_response(&ctx.http, |f| {
-            f.content("Dreaming...")
-        }).await.context("Creating initial statusbox")?;
+        let statusbox = command
+            .edit_original_interaction_response(&ctx.http, |f| f.content("Dreaming..."))
+            .await
+            .context("Creating initial statusbox")?;
 
-        self.do_generate(ctx, statusbox, request, mention_user).await
+        self.do_generate(ctx, statusbox, request, mention_user)
+            .await
     }
 
-    async fn do_generate(&self, ctx: &Context, mut statusbox: Message, request: UserRequest, mention_user: Mention) -> Result<()> {
-        let mut stream = Box::pin(
-            self.context.image_generator.generate(request.clone()).await
-        );
+    async fn do_generate(
+        &self,
+        ctx: &Context,
+        mut statusbox: Message,
+        request: UserRequest,
+        mention_user: Mention,
+    ) -> Result<()> {
+        let mut stream = Box::pin(self.context.image_generator.generate(request.clone()).await);
         // When generating, we first create an interaction response in which we
         // display event data such as queue #s.
         // Once the generation is complete, we send a followup message with the
@@ -188,12 +187,16 @@ impl Handler {
         };
 
         // However, we might want to stick a changelog entry in there.
-        if let Some(changelog_entry) = changelog::get_new_changelog_entry(&self.context, &request.user).await? {
+        if let Some(changelog_entry) =
+            changelog::get_new_changelog_entry(&self.context, &request.user).await?
+        {
             status_text.push(format!("\n{changelog_entry}"));
         }
 
         statusbox
-            .edit(&ctx.http, |message| message.content(&status_text.join("\n")))
+            .edit(&ctx.http, |message| {
+                message.content(&status_text.join("\n"))
+            })
             .await
             .context("Creating initial response")?;
 
@@ -206,7 +209,11 @@ impl Handler {
                         c.raw,
                         c.dream.unwrap()
                     );
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
+                    statusbox
+                        .edit(&ctx.http, |message| {
+                            message.content(&status_text.join("\n"))
+                        })
+                        .await?;
                 }
                 GenerationEvent::Parsed(_) => (
                     // TODO: Implement this.
@@ -214,45 +221,70 @@ impl Handler {
                 GenerationEvent::Queued(n) => {
                     if n > 0 {
                         status_text.insert(1, format!("Queued at position {}", n));
-                        statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
+                        statusbox
+                            .edit(&ctx.http, |message| {
+                                message.content(&status_text.join("\n"))
+                            })
+                            .await?;
                     }
                 }
                 GenerationEvent::Generating(percent) => {
                     // Erase the Queued line, or a previous Generating line.
                     // This should be index 1, but we'll just filter them all out.
-                    status_text = status_text.into_iter()
+                    status_text = status_text
+                        .into_iter()
                         .filter(|l| !(l.starts_with("Queued") || l.starts_with("Generating")))
                         .collect();
                     // Add the new Generating line.
                     status_text.insert(1, format!("Generating ({}%)", percent));
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
+                    statusbox
+                        .edit(&ctx.http, |message| {
+                            message.content(&status_text.join("\n"))
+                        })
+                        .await?;
                 }
                 GenerationEvent::Error(e) => {
                     // There was an error.
                     let err = format!("\n\n{} Error: {:#}", mention_user, e);
                     let err = utils::segment_one(&err, 1800);
                     status_text.push(err);
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
+                    statusbox
+                        .edit(&ctx.http, |message| {
+                            message.content(&status_text.join("\n"))
+                        })
+                        .await?;
                 }
                 GenerationEvent::Completed(c) => {
                     // Filter out Queued or Generating, again. But also Dreaming.
-                    status_text = status_text.into_iter()
-                        .filter(|l| !(l.starts_with("Dreaming") || l.starts_with("Queued") || l.starts_with("Generating")))
+                    status_text = status_text
+                        .into_iter()
+                        .filter(|l| {
+                            !(l.starts_with("Dreaming")
+                                || l.starts_with("Queued")
+                                || l.starts_with("Generating"))
+                        })
                         .collect();
-                    status_text.insert(0, format!("Dreamed about `{}`\nGenerated {} images; now uploading", c.base.base.raw, c.images.len()));
-                    statusbox.edit(&ctx.http, |message| message.content(&status_text.join("\n"))).await?;
+                    status_text.insert(
+                        0,
+                        format!(
+                            "Dreamed about `{}`\nGenerated {} images; now uploading",
+                            c.base.base.raw,
+                            c.images.len()
+                        ),
+                    );
+                    statusbox
+                        .edit(&ctx.http, |message| {
+                            message.content(&status_text.join("\n"))
+                        })
+                        .await?;
 
                     // Add images to the database & upload them.
                     let gallery_geometry = utils::gallery_geometry(c.images.len());
                     let urls = self.context.db.add_image_batch(&c).await?;
-                    
+
                     // Send the results to the user.
                     let mut text = vec![
-                        format!(
-                            "Dreams of `{}` | For {}",
-                            c.base.base.raw,
-                            mention_user
-                        ),
+                        format!("Dreams of `{}` | For {}", c.base.base.raw, mention_user),
                         format!(
                             "Seed {} | {}x{} | {} steps | Aesthetic {} | Guidance {}",
                             c.base.seed,
@@ -270,41 +302,90 @@ impl Handler {
                     // Create the final message, with:
                     // - One row with a delete, restyle, and retry button.
                     // - NxM rows of upscale buttons (up to 4x4).
-                    statusbox.channel_id.send_message(&ctx.http, |message| {
-                        message.content(text.join("\n")).components(|c| {
-                            let mut c = c.add_action_row(self.action_buttons.clone());
-                            // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
-                            for y in 0..gallery_geometry.1 {
-                                let mut row = CreateActionRow::default();
-                                for x in 0..gallery_geometry.0 {
-                                    let index = y * gallery_geometry.0 + x + 1;
-                                    row = row
-                                        .create_button(|b| {
-                                            b.style(ButtonStyle::Primary)
-                                                .label(format!("U{}", index))
-                                                .custom_id(format!("upscale.{}", index))
-                                        })
-                                        .clone();
+                    statusbox
+                        .channel_id
+                        .send_message(&ctx.http, |message| {
+                            message.content(text.join("\n")).components(|c| {
+                                let mut c = c.add_action_row(self.action_buttons.clone());
+                                // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
+                                for y in 0..gallery_geometry.1 {
+                                    let mut row = CreateActionRow::default();
+                                    for x in 0..gallery_geometry.0 {
+                                        let index = y * gallery_geometry.0 + x + 1;
+                                        row = row
+                                            .create_button(|b| {
+                                                b.style(ButtonStyle::Primary)
+                                                    .label(format!("U{}", index))
+                                                    .custom_id(format!("upscale.{}", index))
+                                            })
+                                            .clone();
+                                    }
+                                    c = c.add_action_row(row);
                                 }
-                                c = c.add_action_row(row);
-                            }
-                            c
+                                c
+                            })
                         })
-                    })
-                    .await
-                    .context("Posting pictures")?;
+                        .await
+                        .context("Posting pictures")?;
                     // When all is said and done, delete the statusbox.
                     // But wait if it contains a changelog update.
                     if status_text.len() > 1 {
                         debug!("Deferring statusbox deletion");
                         tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
                     }
-                    statusbox.delete(&ctx.http).await.context("Deleting status message")?;
+                    statusbox
+                        .delete(&ctx.http)
+                        .await
+                        .context("Deleting status message")?;
                     debug!("Deleted statusbox");
                 }
             }
         }
 
+        Ok(())
+    }
+
+    async fn handle_submit(
+        &self,
+        ctx: &Context,
+        interaction: &ModalSubmitInteraction,
+    ) -> Result<()> {
+        let _ = interaction.defer(&ctx.http).await;
+        // Basically just editing.
+        match interaction.data.custom_id.as_str() {
+            "edit.submit" => {
+                debug!("Received edit submission");
+                // Grab the prompt from the input text.
+                let prompt = interaction.data.components.first().context("Expected a component")?
+                    .components.first().context("Expected a component")?;
+                match prompt {
+                    ActionRowComponent::InputText(text) => {
+                        let text = text.value.clone();
+                        // Now we can generate.
+                        let request = generator::UserRequest {
+                            user: interaction.user.to_string(),
+                            raw: text,
+                            dream: None,
+                            source: generator::Source::Discord,
+                        };
+                        let statusbox = interaction
+                            .create_followup_message(&ctx.http, |message| {
+                                message.content("Dreaming...")
+                            })
+                            .await
+                            .context("Creating initial statusbox")?;
+                        self.do_generate(ctx, statusbox, request, interaction.user.mention())
+                            .await?;
+                    }
+                    _ => {
+                        bail!("Expected an input component");
+                    }
+                }
+            }
+            unknown => {
+                bail!("Unknown modal submission: {}", unknown);
+            }
+        }
         Ok(())
     }
 
@@ -320,19 +401,23 @@ impl Handler {
             .unwrap_or((component.data.custom_id.as_str(), ""));
         info!("Received command \"{command}\"");
         if command.starts_with("help") {
+            let _ = component.defer(&ctx.http).await;
             // Display help. Though, which help?
             info!("Received help request for {}", params);
-            let (text, further_help) = help::handler(&self.context, "/", params).await
+            let (text, further_help) = help::handler(&self.context, "/", params)
+                .await
                 .context("While creating help")?;
             // We'll stick the extra topics on the end, as components.
             let mut components = vec![];
             let mut row = CreateActionRow::default();
             for topic in further_help {
-                row = row.create_button(|b| {
-                    b.style(ButtonStyle::Primary)
-                        .label(topic)
-                        .custom_id(format!("{}.{}", command, topic))
-                }).clone();
+                row = row
+                    .create_button(|b| {
+                        b.style(ButtonStyle::Primary)
+                            .label(topic)
+                            .custom_id(format!("{}.{}", command, topic))
+                    })
+                    .clone();
                 if row.0.len() >= 5 {
                     components.push(row);
                     row = CreateActionRow::default();
@@ -358,9 +443,12 @@ impl Handler {
                 // And the last message, with components.
                 component
                     .create_followup_message(&ctx.http, |message| {
-                        message.content(last).components(|c|
-                            components.into_iter().fold(c, |c, r| c.add_action_row(r))
-                        ).ephemeral(true)
+                        message
+                            .content(last)
+                            .components(|c| {
+                                components.into_iter().fold(c, |c, r| c.add_action_row(r))
+                            })
+                            .ephemeral(true)
                     })
                     .await
                     .context("Sending help message")?;
@@ -379,6 +467,7 @@ impl Handler {
             }
             "upscale" => {
                 // TODO: Actually do upscaling.
+                let _ = component.defer(&ctx.http).await;
                 debug!("Upscaling: {:?}", params);
                 // Anyway, this sums up as "Find the url in the message, and replace it with the requested invidual image."
                 let embed = component
@@ -391,13 +480,11 @@ impl Handler {
                 debug!("Replacing {} with {}", url, replacement);
                 // Send a new message with the new url.
                 component
-                    .create_followup_message(&ctx.http, |message| {
-                        message.content(replacement)
-                    })
+                    .create_followup_message(&ctx.http, |message| message.content(replacement))
                     .await
                     .context("Sending new message")?;
-            },
-            "retry" | "restyle" => {
+            }
+            "retry" | "restyle" | "edit" => {
                 // First, we need to retrieve the original generation parameters from the database.
                 // All we have to work with is the UUID. That should be plenty.
                 let url = component
@@ -430,18 +517,57 @@ impl Handler {
                     }
                     // Recreate the raw prompt.
                     // TODO: Really we should just pass the *already parsed* request in.
-                    request.base.raw = format!("{} --style {} --no {} --ar {}:{} --model {}", request.linguistic_prompt, request.supporting_prompt, request.negative_prompt, request.width, request.height, request.model_name);
-                    let statusbox = component
-                        .create_followup_message(&ctx.http, |message| {
-                            message.content("Dreaming...")
-                        })
-                        .await
-                        .context("Creating initial statusbox")?;
-                    self.do_generate(ctx, statusbox, request.base, component.user.mention()).await?;
+                    let raw = format!(
+                        "{} --style {} --no {} --ar {}:{} --model {}",
+                        request.linguistic_prompt,
+                        request.supporting_prompt,
+                        request.negative_prompt,
+                        request.width,
+                        request.height,
+                        request.model_name
+                    );
+                    if command == "edit" {
+                        component
+                            .create_interaction_response(&ctx.http, |f| {
+                                f.kind(InteractionResponseType::Modal)
+                                    .interaction_response_data(|data| {
+                                        data.content("Prompt:")
+                                            .title("Edit prompt")
+                                            .custom_id("edit.submit")
+                                            .components(|c| {
+                                                c.create_action_row(|f| {
+                                                    f.add_input_text({
+                                                        let mut t = CreateInputText::default();
+                                                        t
+                                                        .placeholder("Enter a new prompt")
+                                                        .value(&raw)
+                                                        .custom_id("edit.prompt")
+                                                        .style(component::InputTextStyle::Paragraph)
+                                                        .label("Prompt");
+                                                        t
+                                                    })
+                                                })
+                                            })
+                                    })
+                            })
+                            .await
+                            .context("Sending edit modal")?;
+                    } else {
+                        let _ = component.defer(&ctx.http).await;
+                        request.base.raw = raw;
+                        let statusbox = component
+                            .create_followup_message(&ctx.http, |message| {
+                                message.content("Dreaming...")
+                            })
+                            .await
+                            .context("Creating initial statusbox")?;
+                        self.do_generate(ctx, statusbox, request.base, component.user.mention())
+                            .await?;
+                    }
                 } else {
                     bail!("No generation parameters found for this batch.");
                 }
-            },
+            }
             unknown => {
                 bail!("Unknown component: {}", unknown);
             }
@@ -465,6 +591,11 @@ impl Handler {
                 b.style(ButtonStyle::Primary)
                     .label("Retry")
                     .custom_id("retry")
+            })
+            .create_button(|b| {
+                b.style(ButtonStyle::Primary)
+                    .label("Edit")
+                    .custom_id("edit")
             })
             .create_button(|b| {
                 b.style(ButtonStyle::Primary)
@@ -526,15 +657,37 @@ impl EventHandler for Handler {
             // Delete... deletes. The other two actually just invoke /prompt again!
             Interaction::MessageComponent(component) => {
                 info!("Received component interaction: {:?}", component);
-                let _ = component.defer(&ctx.http).await;
                 if let Err(e) = self.handle_component(&ctx, &component).await {
+                    let _ = component.defer(&ctx.http).await;  // Deferring is optional.
                     error!("Error handling component: {:?}", e);
                     let e = format!("{:#}", e);
                     let e = utils::segment_lines(&e, 1800)[0];
                     // In this case we always send followup messages.
-                    if let Err(err_err) = component.create_followup_message(&ctx.http, |f|
-                        f.content(format!("Error: {:#}", e))
-                    ).await {
+                    if let Err(err_err) = component
+                        .create_followup_message(&ctx.http, |f| {
+                            f.content(format!("Error: {:#}", e))
+                        })
+                        .await
+                    {
+                        // We couldn't send a followup.
+                        error!("Error sending error message: {:?}", err_err);
+                    }
+                }
+            }
+            // Modal submit; Edit.
+            Interaction::ModalSubmit(interaction) => {
+                info!("Received modal submission: {:?}", interaction);
+                if let Err(e) = self.handle_submit(&ctx, &interaction).await {
+                    error!("Error handling modal submission: {:?}", e);
+                    let e = format!("{:#}", e);
+                    let e = utils::segment_lines(&e, 1800)[0];
+                    // In this case we always send followup messages.
+                    if let Err(err_err) = interaction
+                        .create_followup_message(&ctx.http, |f| {
+                            f.content(format!("Error: {:#}", e))
+                        })
+                        .await
+                    {
                         // We couldn't send a followup.
                         error!("Error sending error message: {:?}", err_err);
                     }
