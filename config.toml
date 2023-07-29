@@ -29,20 +29,28 @@ default = "sdxl_1.0"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "WaifuXL_(experimental)" = "waifuxl"
 "Anime_XL" = "anime_art_xl_alpha3"
+"Anime_XL_Realistic" = "anime_xl_realistic"
+
+[models."anime_xl_realistic"]
+description = "Anime Art XL, tuned for realism. This model is experimental and may produce strange results."
+workflow = "workflow-sdxl.json.tmpl"
+baseline = "anime_art_diffusion_xl_alpha3.safetensors"
+default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
+default_negative = "embedding:counterfeit_negative_realistic, plastic, bad quality, doll"
 
 [models."anime_art_xl_alpha3"]
 description = "The very first anime-style model for SDXL. Quality may vary."
 workflow = "workflow-sdxl-norefiner.json.tmpl"
 baseline = "anime_art_diffusion_xl_alpha3.safetensors"
 default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
-default_negative = "embedding:fastnegativev2, plastic, bad quality, doll"
+default_negative = "embedding:counterfeit_negative_anime, plastic, bad quality, doll"
 
 [models."anime_art_xl_alpha2"]
 description = "The very first anime-style model for SDXL. Quality may vary."
 workflow = "workflow-sdxl-norefiner.json.tmpl"
 baseline = "anime_art_diffusion_xl_alpha2.safetensors"
 default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
-default_negative = "embedding:fastnegativev2, plastic, bad quality, doll"
+default_negative = "plastic, bad quality, doll"
 
 [models."sdxl_1.0"]
 description = "The full 1.0 release of SDXL. This model is incredibly flexible."
