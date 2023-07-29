@@ -28,7 +28,14 @@ default = "sdxl_1.0"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "WaifuXL_(experimental)" = "waifuxl"
-"Anime_XL" = "anime_art_xl_alpha2"
+"Anime_XL" = "anime_art_xl_alpha3"
+
+[models."anime_art_xl_alpha3"]
+description = "The very first anime-style model for SDXL. Quality may vary."
+workflow = "workflow-sdxl-norefiner.json.tmpl"
+baseline = "anime_art_diffusion_xl_alpha3.safetensors"
+default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
+default_negative = "embedding:fastnegativev2, plastic, bad quality, doll"
 
 [models."anime_art_xl_alpha2"]
 description = "The very first anime-style model for SDXL. Quality may vary."
