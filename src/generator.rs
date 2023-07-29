@@ -216,12 +216,17 @@ impl ParsedRequest {
                 add_to_prompt(token);
             }
             // Did we just finish reading an option?
+            // First, check for flags that take no arguments.
+            match last_option {
+                Some("np") => { parsed.use_pos_default = false; last_option = None; },
+                Some("nn") => { parsed.use_neg_default = false; last_option = None; },
+                _ => {},
+            };
+            // Then, check for flags that do take arguments.
             if let Some(value) = last_value {
                 match last_option.unwrap() {
                     "model" | "m" => parsed.model_name = value.to_owned(),
                     "style" | "s" => supporting_prompt.push(value),
-                    "np" => parsed.use_pos_default = false,
-                    "nn" => parsed.use_neg_default = false,
                     "scale" => parsed.guidance_scale = value.parse().context("Scale must be a number")?,
                     "aesthetic" | "a" => parsed.aesthetic_scale = value.parse().context("Aesthetic scale must be a number")?,
                     "steps" => parsed.steps = value.parse().context("Steps must be a number")?,
