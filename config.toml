@@ -42,8 +42,8 @@ default_negative = "embedding:counterfeit_negative_realistic, plastic, bad quali
 description = "The very first anime-style model for SDXL. Quality may vary."
 workflow = "workflow-sdxl-norefiner.json.tmpl"
 baseline = "anime_art_diffusion_xl_alpha3.safetensors"
-default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
-default_negative = "embedding:counterfeit_negative_anime, pixar, 3d render, plastic, bad quality, doll"
+default_positive = "Anime screencap, wlop, Sam Yang, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
+default_negative = "embedding:counterfeit_negative_standard, pixar, 3d render, plastic, bad quality, doll"
 
 [models."anime_art_xl_alpha2"]
 description = "The very first anime-style model for SDXL. Quality may vary."
