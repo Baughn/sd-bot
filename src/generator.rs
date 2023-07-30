@@ -93,9 +93,9 @@ impl Default for ParsedRequest {
             negative_prompt: "".to_string(),
             use_pos_default: true,
             use_neg_default: true,
-            guidance_scale: 8.0,
+            guidance_scale: 16.0,  // 4 is fine, 14 and up are fine, 7 is a bit boring.
             aesthetic_scale: 20.0,
-            steps: 50,
+            steps: 40,
             count: 2,
             seed: 0,
             width: 1024,
@@ -271,8 +271,8 @@ impl ParsedRequest {
         if supporting_prompt.is_empty() {
             supporting_prompt = linguistic_prompt.clone();
         }
-        if !(1.0..=30.0).contains(&parsed.guidance_scale) {
-            bail!("Scale must be between 1 and 30");
+        if !(1.0..=80.0).contains(&parsed.guidance_scale) {
+            bail!("Scale must be between 1 and 80");
         }
         if !(1.0..=30.0).contains(&parsed.aesthetic_scale) {
             bail!("Aesthetic scale must be between 1 and 30");
