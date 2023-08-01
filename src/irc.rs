@@ -25,10 +25,17 @@ impl IrcTask {
     }
 
     async fn run_inner(&mut self) -> Result<()> {
+        // Make some alternative nicknames, in case the primary one is taken.
+        // We'll suffix _s in the usual fashion.
+        let alt_nicks = (1..=5)
+            .map(|i| format!("{}{}", self.irc_config.nick, "_".repeat(i)))
+            .collect::<Vec<_>>();
+        // Connect to IRC.
         let config: Config = Config {
             server: Some(self.irc_config.server.clone()),
             port: Some(self.irc_config.port),
             nickname: Some(self.irc_config.nick.clone()),
+            alt_nicks,
             channels: self.irc_config.channels.clone(),
             ..Config::default()
         };
