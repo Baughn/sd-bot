@@ -174,7 +174,7 @@ impl IrcTask {
                     )
                     .await?;
                 }
-                crate::generator::GenerationEvent::Parsed(parsed) => {
+                crate::generator::GenerationEvent::Parsed(_parsed) => {
                     // Do nothing.
                 }
                 crate::generator::GenerationEvent::Queued(n) => {

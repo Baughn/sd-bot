@@ -247,6 +247,12 @@ pub fn get_individual_url(url: &str, replacement: &str) -> Result<String> {
     }
 }
 
+
+pub(crate) fn simplify_fraction(width: u32, height: u32) -> (u32, u32) {
+    let gcd = num::integer::gcd(width, height);
+    (width / gcd, height / gcd)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,6 +271,18 @@ mod tests {
             get_individual_url("https://example.com/123.0.webp", "456").unwrap(),
             "https://example.com/123.456.webp"
         );
+    }
+
+    #[test]
+    fn test_simplify_fraction() {
+        // Test 100 or so random fractions.
+        for _ in 0..100 {
+            let width = rand::random::<u32>() % 1000;
+            let height = rand::random::<u32>() % 1000;
+            let (w, h) = simplify_fraction(width, height);
+            // Assert the fraction doesn't change.
+            assert_eq!(width as f32 / height as f32, w as f32 / h as f32);
+        }
     }
 
     #[test]

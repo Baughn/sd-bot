@@ -521,15 +521,20 @@ impl Handler {
                     }
                     // Recreate the raw prompt.
                     // TODO: Really we should just pass the *already parsed* request in.
-                    let raw = format!(
-                        "{} --style {} --no {} --ar {}:{} --model {}",
+                    let (width, height) = utils::simplify_fraction(request.width, request.height);
+                    let mut raw = format!(
+                        "{} --ar {}:{} --model {}",
                         request.linguistic_prompt,
-                        request.supporting_prompt,
-                        request.negative_prompt,
-                        request.width,
-                        request.height,
+                        width,
+                        height,
                         request.model_name
                     );
+                    if request.linguistic_prompt != request.supporting_prompt {
+                        raw.push_str(&format!(" --style {}", request.supporting_prompt));
+                    }
+                    if !request.negative_prompt.is_empty() {
+                        raw.push_str(&format!(" --no {}", request.negative_prompt));
+                    }
                     if command == "edit" {
                         component
                             .create_interaction_response(&ctx.http, |f| {
