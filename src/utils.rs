@@ -1,5 +1,5 @@
 use std::{
-    io::{Cursor, Write},
+    io::Cursor,
     os::unix::prelude::PermissionsExt,
 };
 

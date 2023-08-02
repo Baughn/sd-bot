@@ -3,10 +3,10 @@ use std::{sync::Arc, collections::HashSet};
 /// This wraps a simple sqlite database.
 /// The database stores per-user settings and a log of generated images.
 ///
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 use log::{info, trace};
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension, params};
 use tokio::sync::Mutex;
 
 use crate::{config::BotConfigModule, generator::{CompletedRequest, UserRequest, ParsedRequest}, utils};
@@ -47,12 +47,14 @@ impl DatabaseModule {
         }
     }
 
-    fn ensure_user(&self, db: &mut Connection, base: &UserRequest) {
+    fn ensure_user(&self, db: &mut Connection, base: &UserRequest) -> String {
+        let userid = self.user_id(base);
         db.execute(
             "INSERT OR IGNORE INTO users (user, settings) VALUES (?, ?)",
-            [self.user_id(base).as_str(), "{}"],
+            params![&userid, "{}"],
         )
         .expect("failed to insert user");
+        userid
     }
 
     // Public functions MUST lock the database mutex.
@@ -78,14 +80,14 @@ impl DatabaseModule {
         db.conn
             .execute(
                 "INSERT INTO batches (uuid, original_prompt, prompt, style_prompt, settings, user, gallery) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                [
-                    c.uuid.to_string().as_str(),
-                    if let Some(dream) = &c.base.base.dream { dream.as_str() } else { "NULL" },
-                    c.base.linguistic_prompt.as_str(),
-                    c.base.supporting_prompt.as_str(),
-                    serde_json::to_string(&c.base).expect("failed to serialize settings").as_str(),
-                    self.user_id(&c.base.base).as_str(),
-                    urls[0].as_str(),
+                params![
+                    &c.uuid.to_string(),
+                    if let Some(dream) = &c.base.base.dream { &dream } else { "NULL" },
+                    c.base.linguistic_prompt,
+                    c.base.supporting_prompt,
+                    serde_json::to_string(&c.base).expect("failed to serialize settings"),
+                    self.user_id(&c.base.base),
+                    urls[0],
                 ],
             )
             .expect("failed to insert batch");
@@ -99,10 +101,10 @@ impl DatabaseModule {
             db.conn
                 .execute(
                     "INSERT INTO images (batch_index, url, uuid) VALUES (?, ?, ?)",
-                    [
-                        i.to_string().as_str(),
-                        url.as_str(),
-                        c.uuid.to_string().as_str(),
+                    params![
+                        i,
+                        url,
+                        &c.uuid.to_string(),
                     ],
                 )
                 .expect("failed to insert image");
@@ -152,4 +154,56 @@ impl DatabaseModule {
             .context("failed to insert changelog entry")?;
         Ok(())
     }
+
+    /// Updates user stats to track the public/private generation ratio.
+    pub(crate) async fn update_user_stats(&self, parsed: &ParsedRequest, is_private: bool) -> Result<()> {
+        let mut db = self.0.lock().await;
+        let userid = self.ensure_user(&mut db.conn, &parsed.base);
+        let (total, private) = db.conn.query_row(
+            "SELECT total_batches, total_private_batches FROM user_stats WHERE user = ?",
+            [&userid],
+            |row| {
+                let total: u32 = row.get(0)?;
+                let private: u32 = row.get(1)?;
+                Ok((total, private))
+            }).optional().context("failed to get user stats")?
+            .unwrap_or((0, 0));
+        let total = total + 1;
+        let private = if is_private { private + 1 } else { private };
+
+        db.conn.execute(
+            "INSERT OR REPLACE INTO user_stats (user, total_batches, total_private_batches) VALUES (?, ?, ?)",
+            params![&userid, &total, &private],
+        ).context("failed to update user stats")?;
+        
+        Ok(())
+    }
+
+    /// Makes sure at least 1/3 of the user's requests are public.
+    pub(crate) async fn check_privacy_limit(&self, parsed: &ParsedRequest, is_private: bool) -> Result<()> {
+        if !is_private {
+            return Ok(());
+        }
+        let userid = self.user_id(&parsed.base); 
+        let db = self.0.lock().await;
+        let (total, private) = db.conn.query_row(
+            "SELECT total_batches, total_private_batches FROM user_stats WHERE user = ?",
+            [&userid],
+            |row| {
+                let total: u32 = row.get(0)?;
+                let private: u32 = row.get(1)?;
+                Ok((total, private))
+            }).optional().context("failed to get user stats")?
+            .unwrap_or((0, 0));
+        info!("User {} has {} total batches, {} private batches", userid, total, private);
+        if total < 4 {
+            return Ok(());
+        }
+        if (private as f32) / (total as f32) > 0.66 {
+            bail!("You've made too many private requests (more than 2/3). Please make some public requests to continue.");
+        } else {
+            Ok(())
+        }
+    }
+
 }

@@ -16,7 +16,7 @@ use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 use uuid::Uuid;
 
-use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule, utils};
+use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule, utils, db::DatabaseModule};
 
 /// Used to determine if a model name is close enough to a real model name.
 /// And for the tests.
@@ -401,13 +401,10 @@ impl ParsedRequest {
 
 
 struct ImageGenerator {
+    db: DatabaseModule,
     config: BotConfigModule,
     command_sender: UnboundedSender<(ParsedRequest, UnboundedSender<GenerationEvent>)>,
     prompt_generator: GPTPromptGeneratorModule,
-}
-
-impl ImageGenerator {
-
 }
 
 
@@ -418,9 +415,10 @@ pub struct ImageGeneratorModule(Arc<RwLock<ImageGenerator>>);
 
 impl ImageGeneratorModule {
 
-    pub fn new(config: BotConfigModule, prompt_generator: GPTPromptGeneratorModule) -> Result<Self> {
+    pub fn new(db: DatabaseModule, config: BotConfigModule, prompt_generator: GPTPromptGeneratorModule) -> Result<Self> {
         let (tx, rx) = unbounded();
         let generator = ImageGeneratorModule(Arc::new(RwLock::new(ImageGenerator {
+            db,
             config,
             command_sender: tx,
             prompt_generator,
@@ -623,7 +621,8 @@ impl ImageGeneratorModule {
         }
     }
 
-    pub async fn generate(&self, mut request: UserRequest) -> impl Stream<Item = GenerationEvent> + '_ {
+    pub async fn generate(&self, mut request: UserRequest, is_private: bool) -> impl Stream<Item = GenerationEvent> + '_ {
+        let db_for_completion = self.0.read().await.db.clone();
         let (tx, rx) = unbounded();
         try_stream! {
             if let Some(ref dream) = request.dream {
@@ -635,11 +634,24 @@ impl ImageGeneratorModule {
 
             // TODO: Snapshot the config here, keep it for the scope of the request.
             let parsed = ParsedRequest::from_request(&self.0.read().await.config.snapshot().await, request)?;
+            // Check if the user is making too many private requests.
+            self.0.read().await.db.check_privacy_limit(&parsed, is_private)
+                .await
+                .context("While checking privacy limit")?;
             yield GenerationEvent::Parsed(parsed.clone());
 
             self.0.write().await.command_sender.send((parsed.clone(), tx)).await.expect("failed to send command");
         }.map(|r| r.unwrap_or_else(GenerationEvent::Error))
          .chain(rx)
+         .then(move |ev| {
+            let db = db_for_completion.clone();
+            async move {
+                if let GenerationEvent::Completed(ref ev) = ev {
+                    db.update_user_stats(&ev.base, is_private).await.expect("failed to update user stats");
+                }
+                ev
+            }
+        })
     }
 }
 

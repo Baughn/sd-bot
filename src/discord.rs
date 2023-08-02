@@ -164,7 +164,9 @@ impl Handler {
             .await
             .context("Creating initial statusbox")?;
 
-        self.do_generate(ctx, statusbox, request, mention_user)
+        let is_private = command.guild_id.is_none();
+
+        self.do_generate(ctx, statusbox, request, mention_user, is_private)
             .await
     }
 
@@ -174,8 +176,9 @@ impl Handler {
         mut statusbox: Message,
         request: UserRequest,
         mention_user: Mention,
+        is_private: bool,
     ) -> Result<()> {
-        let mut stream = Box::pin(self.context.image_generator.generate(request.clone()).await);
+        let mut stream = Box::pin(self.context.image_generator.generate(request.clone(), is_private).await);
         // When generating, we first create an interaction response in which we
         // display event data such as queue #s.
         // Once the generation is complete, we send a followup message with the
@@ -351,6 +354,7 @@ impl Handler {
         interaction: &ModalSubmitInteraction,
     ) -> Result<()> {
         let _ = interaction.defer(&ctx.http).await;
+        let is_private = interaction.guild_id.is_none();
         // Basically just editing.
         match interaction.data.custom_id.as_str() {
             "edit.submit" => {
@@ -374,7 +378,7 @@ impl Handler {
                             })
                             .await
                             .context("Creating initial statusbox")?;
-                        self.do_generate(ctx, statusbox, request, interaction.user.mention())
+                        self.do_generate(ctx, statusbox, request, interaction.user.mention(), is_private)
                             .await?;
                     }
                     _ => {
@@ -561,7 +565,8 @@ impl Handler {
                             })
                             .await
                             .context("Creating initial statusbox")?;
-                        self.do_generate(ctx, statusbox, request.base, component.user.mention())
+                        let is_private = component.guild_id.is_none();
+                        self.do_generate(ctx, statusbox, request.base, component.user.mention(), is_private)
                             .await?;
                     }
                 } else {

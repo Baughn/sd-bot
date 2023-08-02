@@ -15,6 +15,7 @@ mod changelog;
 mod config;
 mod db;
 mod discord;
+//mod flow_generator;
 mod generator;
 mod gpt;
 mod help;
@@ -55,7 +56,7 @@ async fn main() -> Result<()> {
     // Start backends.
     let db = DatabaseModule::new(config.clone()).await?;
     let prompt_generator = GPTPromptGeneratorModule::new(config.clone());
-    let image_generator = ImageGeneratorModule::new(config.clone(), prompt_generator.clone())?;
+    let image_generator = ImageGeneratorModule::new(db.clone(), config.clone(), prompt_generator.clone())?;
 
     let context = BotContext {
         config: config.clone(),

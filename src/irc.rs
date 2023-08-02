@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Context, Ok, Result};
 use irc::client::prelude::*;
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, trace};
 use tokio_stream::StreamExt;
 
 use crate::{config::IrcConfig, generator::UserRequest, utils, BotContext, help};
@@ -143,10 +143,12 @@ impl IrcTask {
         };
         // Only picture generation below here. Other commands return early.
         // Before we do anything else, send a new changelog entry! If there is one.
-        if let Some(entry) = crate::changelog::get_new_changelog_entry(context, &format!("irc:{nick}")).await? {
+        let userid = format!("irc:{nick}");
+        if let Some(entry) = crate::changelog::get_new_changelog_entry(context, &userid).await? {
             send(sender, target, &format!("{}: {}", nick, entry)).await?;
         }
-        let mut events = Box::pin(context.image_generator.generate(request).await);
+        // It's fine, generate the images.
+        let mut events = Box::pin(context.image_generator.generate(request, !target.starts_with('#')).await);
         while let Some(event) = events.next().await {
             trace!("Event: {:?}", event);
             match event {
@@ -172,8 +174,8 @@ impl IrcTask {
                     )
                     .await?;
                 }
-                crate::generator::GenerationEvent::Parsed(_) => {
-                    // Ignoring this one.
+                crate::generator::GenerationEvent::Parsed(parsed) => {
+                    // Do nothing.
                 }
                 crate::generator::GenerationEvent::Queued(n) => {
                     if n >= 3 {

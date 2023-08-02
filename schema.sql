@@ -12,6 +12,13 @@ CREATE TABLE IF NOT EXISTS Changelog_viewed (
 
 CREATE INDEX IF NOT EXISTS Changelog_viewed_user ON Changelog_viewed(user);
 
+CREATE TABLE IF NOT EXISTS User_stats (
+    user TEXT PRIMARY KEY,
+    total_batches INTEGER NOT NULL,
+    total_private_batches INTEGER NOT NULL,
+    FOREIGN KEY (user) REFERENCES Users(user)
+);
+
 CREATE TABLE IF NOT EXISTS Batches (
     uuid TEXT PRIMARY KEY,
     original_prompt TEXT,  -- Original prompt used by GPT-4, if applicable
