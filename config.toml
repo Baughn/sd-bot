@@ -25,11 +25,19 @@ channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
 default = "sdxl_1.0"
+"Realistic" = "Dreamshaper"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "WaifuXL_(experimental)" = "waifuxl"
 "Anime_XL" = "anime_art_xl_alpha3"
 "Anime_XL_Realistic" = "anime_xl_realistic"
+
+[models.Dreamshaper]
+description = "Dreamshaper, tuned for realism. This model is experimental and may produce dragons."
+workflow = "workflow-sdxl-norefiner.json.tmpl"
+baseline = "DreamshaperXL_alpha2.safetensors"
+default_positive = "8k, highly detailed"
+default_negative = "embedding:BadDream, embedding:FastNegativeV2"
 
 [models."anime_xl_realistic"]
 description = "Anime Art XL, tuned for realism. This model is experimental and may produce strange results."

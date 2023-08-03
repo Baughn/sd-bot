@@ -10,3 +10,4 @@
 - The first SDXL anime model, https://civitai.com/models/117259/anime-art-diffusion-xl, is out.
   This is now available as `-m anime_art_xl_alpha3` or (currently) `-m Anime_XL`. We also have alpha2.
 - Added Anime_XL_Realistic, a preset for Anime_XL that tunes for realistic(-ish) output.
+- Added Dreamshaper alpha2, also aliased as `-m Realistic`. This is intended for photorealistic outputs. Plus dragons.
