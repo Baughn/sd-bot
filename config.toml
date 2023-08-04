@@ -29,8 +29,14 @@ default = "sdxl_1.0"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "WaifuXL_(experimental)" = "waifuxl"
-"Anime_XL" = "anime_art_xl_alpha3"
-"Anime_XL_Realistic" = "anime_xl_realistic"
+"Anime_XL" = "AstreaPixieXL"
+
+[models.AstreaPixieXL]
+description = "AstreaPixie XL v1.6"
+workflow = "workflow-sdxl.json.tmpl"
+baseline = "AstreaPixieXL_1.6.safetensors"
+default_positive = "anime, 8k, high resolution"
+default_negative = "(worst quality, low quality, lowres:1.2), doll, plastic, (writing, signature, watermark, artist name:1.2), border, white border, (interlocked fingers:1.2)"
 
 [models.Dreamshaper]
 description = "Dreamshaper, tuned for realism. This model is experimental and may produce dragons."
