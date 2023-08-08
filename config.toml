@@ -33,7 +33,7 @@ default = "sdxl_1.0"
 
 [models.AstreaPixieXL]
 description = "AstreaPixie XL v1.6"
-workflow = "workflow-sdxl.json.tmpl"
+workflow = "workflow-sdxl-norefiner.json.tmpl"
 baseline = "AstreaPixieXL_1.6.safetensors"
 default_positive = "anime, 8k, high resolution"
 default_negative = "(worst quality, low quality, lowres:1.2), doll, plastic, (writing, signature, watermark, artist name:1.2), border, white border, (interlocked fingers:1.2)"
