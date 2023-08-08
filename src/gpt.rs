@@ -47,13 +47,13 @@ impl GPTPromptGeneratorModule {
             messages: vec![
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::system,
-                    content: Some(system_prompt.to_string()),
+                    content: system_prompt.to_string(),
                     name: None,
                     function_call: None,
                 },
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::user,
-                    content: Some(user_prompt.to_string()),
+                    content: user_prompt.to_string(),
                     name: None,
                     function_call: None,
                 },
@@ -119,13 +119,13 @@ impl GPTPromptGeneratorModule {
             messages: vec![
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::system,
-                    content: Some(prompt_template),
+                    content: prompt_template,
                     name: None,
                     function_call: None,
                 },
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::user,
-                    content: Some(dream.to_string()),
+                    content: dream.to_string(),
                     name: None,
                     function_call: None,
                 },
