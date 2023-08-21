@@ -35,7 +35,7 @@ sdxl = "sdxl_1.0"
 
 [models.darkpizzaxl]
 description = "DarkPizza XL Origin. TODO."
-workflow = "workflow-sdxl-norefiner.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "DarkPizzaXLOrigin_3.4.safetensors"
 refiner = "sd_xl_refiner_1.0.safetensors"
 default_positive = ""
@@ -43,7 +43,7 @@ default_negative = "low quality, deformed, glitch, noisy, stock photo"
 
 [models.breakdomainxl]
 description = "BreakDomain XL. A Jemnite special; best for stylized art. Use tags."
-workflow = "workflow-sdxl.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "BreakDomainXL_V02g.safetensors"
 refiner = "sd_xl_refiner_1.0.safetensors"
 default_positive = "absurdres, highres, ultra detailed"
@@ -51,7 +51,7 @@ default_negative = "(worst quality, low quality:1.4), 3d, monochromatic"
 
 [models.rundiffusionxl]
 description = "RunDiffusionXL Beta. Aims at photorealistic fantasy art. Use English."
-workflow = "workflow-sdxl.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "RunDiffusionXL_beta.safetensors"
 refiner = "sd_xl_refiner_1.0.safetensors"
 default_positive = ""
@@ -59,28 +59,28 @@ default_negative = "3d, low quality, worst quality, mutation, deformed hands, ( 
 
 [models.duchaitenxl]
 description = "Duchaiten v1.0. Good for aesthetics, bad for fanart or anime. Use English."
-workflow = "workflow-sdxl-norefiner.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "DucHaiten-AIart-XL.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.5), (low quality:1.5), (normal quality:1.5), lowres, bad anatomy, bad hands, multiple eyebrow, (cropped), extra limb, missing limbs, deformed hands, long neck, long body, (bad hands), signature, username, artist name, conjoined fingers, deformed fingers, ugly eyes, imperfect eyes, skewed eyes, unnatural face, unnatural body, error"
 
 [models.AstreaPixieXL]
 description = "AstreaPixie XL v1.6"
-workflow = "workflow-sdxl-norefiner.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "AstreaPixieXL_1.6.safetensors"
 default_positive = "anime, 8k, high resolution"
 default_negative = "(worst quality, low quality, lowres:1.2), doll, plastic, (writing, signature, watermark, artist name:1.2), border, white border, (interlocked fingers:1.2)"
 
 [models.Dreamshaper]
 description = "Dreamshaper, tuned for realism. This model is experimental and may produce dragons."
-workflow = "workflow-sdxl-norefiner.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "DreamshaperXL_alpha2.safetensors"
 default_positive = "8k, highly detailed"
 default_negative = "embedding:BadDream, embedding:FastNegativeV2"
 
 [models."anime_xl_realistic"]
 description = "Anime Art XL, tuned for realism. This model is experimental and may produce strange results."
-workflow = "workflow-sdxl.json.tmpl"
+workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
 baseline = "anime_art_diffusion_xl_alpha3.safetensors"
 default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
 default_negative = "embedding:counterfeit_negative_realistic, plastic, bad quality, doll"
