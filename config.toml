@@ -24,12 +24,45 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "sdxl_1.0"
+default = "Anime_XL"
+sdxl = "sdxl_1.0"
+"Aesthetic" = "duchaitenxl"
 "Realistic" = "Dreamshaper"
+"Drawings" = "breakdomainxl"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
-"WaifuXL_(experimental)" = "waifuxl"
-"Anime_XL" = "AstreaPixieXL"
+"Anime_XL" = "darkpizzaxl"
+
+[models.darkpizzaxl]
+description = "DarkPizza XL Origin. TODO."
+workflow = "workflow-sdxl-norefiner.json.tmpl"
+baseline = "DarkPizzaXLOrigin_3.4.safetensors"
+refiner = "sd_xl_refiner_1.0.safetensors"
+default_positive = ""
+default_negative = "low quality, deformed, glitch, noisy, stock photo"
+
+[models.breakdomainxl]
+description = "BreakDomain XL. A Jemnite special; best for stylized art. Use tags."
+workflow = "workflow-sdxl.json.tmpl"
+baseline = "BreakDomainXL_V02g.safetensors"
+refiner = "sd_xl_refiner_1.0.safetensors"
+default_positive = "absurdres, highres, ultra detailed"
+default_negative = "(worst quality, low quality:1.4), 3d, monochromatic"
+
+[models.rundiffusionxl]
+description = "RunDiffusionXL Beta. Aims at photorealistic fantasy art. Use English."
+workflow = "workflow-sdxl.json.tmpl"
+baseline = "RunDiffusionXL_beta.safetensors"
+refiner = "sd_xl_refiner_1.0.safetensors"
+default_positive = ""
+default_negative = "3d, low quality, worst quality, mutation, deformed hands, ( three arms or more, three hands or more, three legs or more, three feet or more:1.6)"
+
+[models.duchaitenxl]
+description = "Duchaiten v1.0. Good for aesthetics, bad for fanart or anime. Use English."
+workflow = "workflow-sdxl-norefiner.json.tmpl"
+baseline = "DucHaiten-AIart-XL.safetensors"
+default_positive = ""
+default_negative = "(worst quality:1.5), (low quality:1.5), (normal quality:1.5), lowres, bad anatomy, bad hands, multiple eyebrow, (cropped), extra limb, missing limbs, deformed hands, long neck, long body, (bad hands), signature, username, artist name, conjoined fingers, deformed fingers, ugly eyes, imperfect eyes, skewed eyes, unnatural face, unnatural body, error"
 
 [models.AstreaPixieXL]
 description = "AstreaPixie XL v1.6"

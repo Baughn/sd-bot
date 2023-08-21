@@ -15,7 +15,7 @@ mod changelog;
 mod config;
 mod db;
 mod discord;
-//mod flow_generator;
+mod flow_generator;
 mod generator;
 mod gpt;
 mod help;

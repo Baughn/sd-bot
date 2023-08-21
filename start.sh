@@ -1,4 +1,4 @@
-#!/usr/bin/env nix-shell
+#!/usr/bin/env cached-nix-shell
 #!nix-shell -i bash -p shellcheck
 # shellcheck shell=bash
 #
@@ -28,7 +28,7 @@ export RUST_LOG="${RUST_LOG:-info,sd_bot_2,tracing=warn,serenity=warn}"
 #export RUST_BACKTRACE=1
 
 while true; do
-  nix-shell --run "cargo run --release -- -c config.toml" || true
+  cached-nix-shell --run "cargo run --release -- -c config.toml" || true
   echo "Bot exited, restarting in 5 seconds..."
   sleep 5
 done
