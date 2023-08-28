@@ -104,10 +104,6 @@ impl GPTPromptGeneratorModule {
         let prompt_template = std::fs::read_to_string("prompt-completion.tmpl")
             .context("While reading prompt-completion.tmpl")?;
         trace!("Prompt template hash: {}", utils::hash(&prompt_template));
-        // First, make sure it isn't pointlessly long.
-        if dream.len() > 200 {
-            bail!("There's no point in using /dream with long prompts. Maybe try /prompt instead?");
-        }
         // Set up the OpenAI client.
         let key = std::env::var("OPENAI_API_KEY")
             .context("OPENAI_API_KEY not set. Please use /prompt.")?;
