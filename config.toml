@@ -38,7 +38,7 @@ sdxl = "sdxl_1.0"
 description = "ZavyYume XL. Mixture of anime and cartoon styles. Use whatever."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
 baseline = "zavyyumexl_v10.safetensors"
-default_positive = "soft outlines, magnificent, ethereal, painterly, epic, fantasy art, dreamy"
+default_positive = "soft outlines, magnificent, painterly, epic"
 default_negative = "low quality, worst quality, lowres, monochrome, photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark"
 
 [models.realcartoonxl]
