@@ -317,6 +317,11 @@ impl ParsedRequest {
         // Load the workflow.
         let workflow = std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
         // Replace the placeholders.
+        let linguistic_prompt = if self.use_pos_default {
+            self.linguistic_prompt.clone() + ", " + &model_config.default_positive
+        } else {
+            self.linguistic_prompt.clone()
+        };
         let supporting_prompt = if self.use_pos_default {
             self.supporting_prompt.clone() + ", " + &model_config.default_positive
         } else {
@@ -349,7 +354,7 @@ impl ParsedRequest {
             .replace("__BASE_CHECKPOINT__", &json_encode_string(&model_config.baseline))
             .replace("__VAE__", &json_encode_string(model_config.vae.as_ref().unwrap_or(&"".to_string())))
             .replace("__NEGATIVE_PROMPT__", &json_encode_string(&negative_prompt))
-            .replace("__PROMPT_A__", &json_encode_string(&self.linguistic_prompt))
+            .replace("__PROMPT_A__", &json_encode_string(&linguistic_prompt))
             .replace("__PROMPT_B__", &json_encode_string(&supporting_prompt))
             .replace("__STEPS_TOTAL__", &self.steps.to_string())
             .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())

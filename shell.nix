@@ -12,7 +12,9 @@ in
 pkgs.mkShell {
   libPath = "/run/opengl-driver/lib:" + (lib.makeLibraryPath libraries);
 
-  packages = libraries;
+  packages = libraries ++ (with pkgs; [
+    cargo rustc openssh
+  ]);
 
   shellHook = ''
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$libPath
