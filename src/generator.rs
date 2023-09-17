@@ -451,7 +451,7 @@ impl ImageGeneratorModule {
         // Now, we need to poll the history endpoint until it's done.
         // We limit the traffic by reading the websocket, only polling when it update or if
         // it's been a second.
-        let mut filenames = None;
+        let mut filenames: Option<Vec<String>> = None;
         let mut ws_client = ws::connect_async(format!("ws://{}:{}/ws?clientId={}", backend.host, backend.port, prompt_id)).await.context("failed to connect to websocket")?.0;
         for _ in 0..30 {
             select! {
@@ -483,16 +483,29 @@ impl ImageGeneratorModule {
             let outputs = history.get(prompt_id)
                 .and_then(|o| o.get("outputs")).context("history missing outputs")?;
             let outputs = outputs.as_object().context("outputs not an object")?;
-            // This should just contain a single key, which is the number. We only care about the value.
-            let suboutput = outputs.iter().next().context("outputs empty")?.1;
-            let images = suboutput.get("images").context("suboutput missing images")?;
-            let images = images.as_array().context("images not an array")?;
-            filenames = images.iter().map(|i| {
-                let filename = i.get("filename")?;
-                let filename = filename.as_str()?;
-                Some(filename.to_owned())
-            }).collect::<Option<Vec<_>>>();
-            trace!("Got {} images", filenames.as_ref().map(|v| v.len()).unwrap_or(0));
+            // This can contain multiple outputs, but we only care about whichever one
+            // has a non-empty images array.
+            // We'll just take the first one that has images.
+            let maybe_filenames = outputs.iter().find_map(|(k, v)| {
+                let images = v.get("images")?;
+                let images = images.as_array()?;
+                if images.is_empty() {
+                    None
+                } else {
+                    let filenames = images.iter().map(|i| {
+                        let filename = i.get("filename")?;
+                        let filename = filename.as_str()?;
+                        Some(filename.to_owned())
+                    }).collect::<Option<Vec<_>>>();
+                    Some(filenames)
+                }
+            });
+            if let Some(fns) = maybe_filenames {
+                filenames = fns;
+                info!("Got filenames: {:?}", filenames);
+            } else {
+                bail!("no images in history");
+            }
             break;
         }
         // If we didn't get any filenames, we timed out.
