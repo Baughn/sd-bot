@@ -60,7 +60,7 @@ impl GPTPromptGeneratorModule {
             ],
             functions: None,
             function_call: None,
-            temperature: Some(1.0),
+            temperature: Some(1.2),
             top_p: None,
             n: None,
             stream: Some(false),
