@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "Painterly"
+default = "Drawings"
 sdxl = "sdxl_1.0"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
@@ -56,12 +56,11 @@ default_positive = ""
 default_negative = "low quality, deformed, glitch, noisy, stock photo"
 
 [models.breakdomainxl]
-description = "BreakDomain XL. A Jemnite special; best for stylized art. Use tags."
+description = "BreakDomain XL. Best for stylized art. Use tags."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "BreakDomainXL_V03d.safetensors"
-refiner = "sd_xl_refiner_1.0.safetensors"
+baseline = "BreakDomainXL_V05g.safetensors"
 default_positive = "absurdres, highres, ultra detailed"
-default_negative = "(worst quality, low quality:1.4), 3d, monochromatic"
+default_negative = "(low quality, worst quality, lowres, monochrome, photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.5)"
 
 [models.rundiffusionxl]
 description = "RunDiffusionXL Beta. Aims at photorealistic fantasy art. Use English."
