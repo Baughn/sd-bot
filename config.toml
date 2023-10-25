@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "Drawings"
+default = "zavychromaxl"
 sdxl = "sdxl_1.0"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
@@ -32,7 +32,42 @@ sdxl = "sdxl_1.0"
 "Drawings" = "breakdomainxl"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
-"Anime_XL" = "darkpizzaxl"
+"Anime_XL" = "anime_allysxl"
+
+[models.shugochara]
+description = "Highly broken SC model. Use for fun."
+workflow = "workflow-sdxl-norefiner-shugo.json.tmpl"
+baseline = "explicitFreedomNSFW_alpha.safetensors"
+default_positive = "shugo chara"
+default_negative = "chibi, (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, sketch, 3d, vector art"
+
+[models.zavychromaxl]
+description = "ZavyChroma XL. Realism & Magic. Use English."
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+baseline = "zavychromaxl_v21.safetensors"
+default_positive = ""
+default_negative = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, anime, illustration, sketch, 3d, vector art, cartoon, painting"
+
+[models.dreamshaper8]
+description = "Dreamshaper 8; a modern SD 1.5 model. Good for realism, poor for complex scenes."
+workflow = "workflow-sd15-baseonly.json.tmpl"
+baseline = "dreamshaper_8.safetensors"
+default_positive = ""
+default_negative = "embedding:BadDream, (embedding:UnrealisticDream:1.3)"
+
+[models.allysxl]
+description = "Allys Mix XL. Mixture of anime and realistic; use whatever."
+workflow = "workflow-sdxl-norefiner-unwrong-clip2.json.tmpl"
+baseline = "theAllysMixXSDXL_v10.safetensors"
+default_positive = ""
+default_negative = "(nude, low quality, worst quality, lowres, monochrome, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.7)"
+
+[models.anime_allysxl]
+description = "Allys Mix XL. Mixture of anime and realistic; use whatever."
+workflow = "workflow-sdxl-norefiner-unwrong-clip2.json.tmpl"
+baseline = "theAllysMixXSDXL_v10.safetensors"
+default_positive = "Anime screencap."
+default_negative = "(nude, low quality, worst quality, lowres, monochrome, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.7)"
 
 [models.zavyyumexl]
 description = "ZavyYume XL. Mixture of anime and cartoon styles. Use whatever."

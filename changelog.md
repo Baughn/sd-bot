@@ -5,8 +5,13 @@
 # Infrastructure
 - Initial LoRA support. For now just gives a quality boost.
 
+# Tips
+- Prompt book: https://docs.google.com/presentation/d/1HEcE3qOAGVujcDaNQbiLXyx7zwKHQkXEILsYBhsot7A/edit
+
 # Models
-- Default model swapped to BreakDomainXL (V5), aka. `-m Drawings`. The previous model was `-m painterly`, or `-m zavyyumexl`.
+- Default model swapped to ZavyChroma XL. The previous model was `-m allysxl`.
+- Anime_XL alias swapped to anime_allysxl, which functionally just prepends "Anime screencap." to the prompt.
+- Added ZavyChromaXL, which specializes in fantasy realism. Use English; don't try for anime, at least not without --nn.
 - Added ZavyYumeXL, also aliased as `-m Painterly`. This is an attempted mixture of anime and cartoon style. Try it with --np as well.
 - Added Dreamshaper alpha2, also aliased as `-m Realistic`. This is intended for photorealistic outputs. Plus dragons.
 - Added duchaitenxl. This is a semi-photorealistic model tuned for aesthetics. Use English descriptions, not tags.
