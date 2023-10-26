@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "zavychromaxl"
+default = "kohakuxl"
 sdxl = "sdxl_1.0"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
@@ -32,7 +32,14 @@ sdxl = "sdxl_1.0"
 "Drawings" = "breakdomainxl"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
-"Anime_XL" = "anime_allysxl"
+"Anime_XL" = "kohakuxl"
+
+[models.kohakuxl]
+description = "Kohaku-XL Beta7. Very anime. Use tags."
+workflow = "workflow-sdxl-kohaku.json.tmpl"
+baseline = "kohakuXLBeta_beta7.safetensors"
+default_positive = "Masterpiece, (highres, highest quality:1.1), (extremely detailed:1.1)"
+default_negative = "photorealistic, 3d model, bad, worse, worst, ugly, bad anatomy, blurry, close-up, disembodied limb"
 
 [models.shugochara]
 description = "Highly broken SC model. Use for fun."

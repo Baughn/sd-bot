@@ -9,8 +9,8 @@
 - Prompt book: https://docs.google.com/presentation/d/1HEcE3qOAGVujcDaNQbiLXyx7zwKHQkXEILsYBhsot7A/edit
 
 # Models
-- Default model swapped to ZavyChroma XL. The previous model was `-m allysxl`.
-- Anime_XL alias swapped to anime_allysxl, which functionally just prepends "Anime screencap." to the prompt.
+- Default model swapped to Kohaku XL beta7. The previous model was `-m zavychromaxl`.
+- Anime_XL alias swapped to KohakuXL. This is a partially-completed full finetune based on Danbooru. Let's give it a try.
 - Added ZavyChromaXL, which specializes in fantasy realism. Use English; don't try for anime, at least not without --nn.
 - Added ZavyYumeXL, also aliased as `-m Painterly`. This is an attempted mixture of anime and cartoon style. Try it with --np as well.
 - Added Dreamshaper alpha2, also aliased as `-m Realistic`. This is intended for photorealistic outputs. Plus dragons.
