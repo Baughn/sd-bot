@@ -37,9 +37,9 @@ sdxl = "sdxl_1.0"
 [models.kohakuxl]
 description = "Kohaku-XL Beta7. Very anime. Use tags."
 workflow = "workflow-sdxl-kohaku.json.tmpl"
-baseline = "kohakuXLBeta_beta7.safetensors"
-default_positive = "Anime screencap. (highres, highest quality:1.1), (extremely detailed:1.1)"
-default_negative = "photorealistic, 3d model, bad, worse, worst, ugly, bad anatomy, blurry, close-up, disembodied limb"
+baseline = "kohakuXLBeta_beta7Pro.safetensors"
+default_positive = "(by Stanley Artgerm Lau, WLOP, Rossdraws, James Jean, Andrei Riabovitchev, Marc Simonetti, Yoshitaka Amano. background by James Jean and Gustav Klimt, light by Julie Bell, 4k. Studio Ghibli:0.5)"
+default_negative = "bad anatomy, disembodied limb, realistic, blurry, watercolor"
 
 [models.shugochara]
 description = "Highly broken SC model. Use for fun."

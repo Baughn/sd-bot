@@ -93,7 +93,7 @@ impl Default for ParsedRequest {
             negative_prompt: "".to_string(),
             use_pos_default: true,
             use_neg_default: true,
-            guidance_scale: 7.0,
+            guidance_scale: 9.0,
             aesthetic_scale: 20.0,
             steps: 40,
             count: 2,
