@@ -109,7 +109,7 @@ impl GPTPromptGeneratorModule {
             .context("OPENAI_API_KEY not set. Please use /prompt.")?;
         let client = openai_api_rs::v1::api::Client::new(key);
         // Ask GPT-4 to complete the prompt.
-        let model = chat_completion::GPT4.to_string();
+        let model = "gpt-4-1106-preview".to_string();
         let req = ChatCompletionRequest {
             model: model.clone(),
             messages: vec![
