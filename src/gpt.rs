@@ -25,10 +25,6 @@ impl ToString for GPTPrompt {
     }
 }
 
-fn default_model() -> String {
-    "pixart".to_string()
-}
-
 #[derive(Clone)]
 pub struct GPTPromptGeneratorModule {
     config: BotConfigModule,
