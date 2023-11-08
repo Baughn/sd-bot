@@ -146,9 +146,9 @@ impl ParsedRequest {
         if !(0.25..=4.0).contains(&ar) {
             bail!("Aspect ratio must be between 1:4 and 4:1");
         }
-        // Shrink dimensions so that they're multiples of 8.
-        width -= width % 8;
-        height -= height % 8;
+        // Shrink dimensions so that they're multiples of 64.
+        width -= width % 64;
+        height -= height % 64;
 
         Ok((width, height))
     }
@@ -542,7 +542,13 @@ impl ImageGeneratorModule {
                 let percent = 100.0 * (1.0 - (remaining as f64 / request.count as f64));
                 yield GenerationEvent::Generating(percent as u32);
 
-                let batch_size = std::cmp::min(remaining, request.max_batch_size());
+                let batch_size = if request.model_name == "pixart" {
+                    // HACK WARNING
+                    1
+                } else {
+                    std::cmp::min(remaining, request.max_batch_size())
+                };
+
                 let retry_strategy = ExponentialBackoff::from_millis(50).max_delay(std::time::Duration::from_secs(2)).take(5);
                 let images = Retry::spawn(retry_strategy, || async {
                     let request = request.build_query(&config, batch_size, seed_offset).context("Failed to build query")?;

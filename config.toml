@@ -34,6 +34,13 @@ sdxl = "sdxl_1.0"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "Anime_XL" = "kohakuxl"
 
+[models.pixart]
+description = "Extremely experimental. Use descriptive english."
+workflow = "workflow-pixart.json.tmpl"
+baseline = ""
+default_positive = "Highly detailed and intricate, looks great."
+default_negative = "Low quality, grainy, ugly, cropped, error"
+
 [models.kohakuxl]
 description = "Kohaku-XL Beta7. Very anime. Use tags."
 workflow = "workflow-sdxl-kohaku.json.tmpl"

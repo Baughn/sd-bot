@@ -13,15 +13,20 @@ pub struct GPTPrompt {
     prompt: String,
     style: String,
     aspect_ratio: String,
+    model: String,
 }
 
 impl ToString for GPTPrompt {
     fn to_string(&self) -> String {
         format!(
-            "{} --style {} --ar {}",
-            self.prompt, self.style, self.aspect_ratio
+            "{} --style {} --ar {} -m {}",
+            self.prompt, self.style, self.aspect_ratio, self.model
         )
     }
+}
+
+fn default_model() -> String {
+    "pixart".to_string()
 }
 
 #[derive(Clone)]
@@ -170,6 +175,9 @@ impl GPTPromptGeneratorModule {
         )
         .context("While writing to prompt-completions.txt")?;
         // Parse the result into a GPTPrompt.
+        // There's a pretty good chance GPT-4 will try to markdown-escape this with ```json,
+        // so we'll strip that out if it's there.
+        let result = result.trim_start_matches("```json\n").trim_end_matches("```");
         // If it isn't valid, we'll bail with the whole completion in the error.
         let parsed = serde_json::from_str::<GPTPrompt>(&result)
             .with_context(|| format!("While parsing GPTPrompt from {:?}", result))?;
