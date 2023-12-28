@@ -42,7 +42,7 @@ impl GPTPromptGeneratorModule {
             .context("OPENAI_API_KEY not set. Please stick to real help subjects.")?;
         let client = openai_api_rs::v1::api::Client::new(key);
         // Ask GPT-3.5-turbo to complete the prompt.
-        let model = chat_completion::GPT3_5_TURBO.to_string();
+        let model = "gpt-4-1106-preview".to_string();
         let req = ChatCompletionRequest {
             model,
             messages: vec![
@@ -73,7 +73,7 @@ impl GPTPromptGeneratorModule {
             user: None,
         };
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(20),
+            std::time::Duration::from_secs(120),
             client.chat_completion(req),
         );
         let result = result
@@ -141,7 +141,7 @@ impl GPTPromptGeneratorModule {
             user: Some(user.to_string()),
         };
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(20),
+            std::time::Duration::from_secs(120),
             client.chat_completion(req),
         )
         .await

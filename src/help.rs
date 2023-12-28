@@ -59,7 +59,7 @@ async fn handle_with_gpt(context: &BotContext, prefix: &str, request: &str) -> R
     let mut prompt = format!(
         "Here is some documentation:\n\n{}",
         full_text(&root(context, prefix).await, 1, ""));
-    prompt += "\nGiven the above, answer the following question:\n\n";
+    prompt += "\nGiven the above, answer the following question. Be as concise as possible, but no more. If the question isn't about image generation, then _ONLY_ respond with a request to use !ask instead of !help. \n\n";
     context.prompt_generator.gpt3_5(&prompt, request).await
 }
 

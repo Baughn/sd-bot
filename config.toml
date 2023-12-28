@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "kohakuxl"
+default = "yamerxl"
 sdxl = "sdxl_1.0"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
@@ -34,31 +34,38 @@ sdxl = "sdxl_1.0"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "Anime_XL" = "kohakuxl"
 
+[models.yamerxl]
+description = "Yamer's anime. Use tags."
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+baseline = "sdxlYamersAnimeUltra_ysAnimeV5.safetensors"
+default_positive = "absurdres, vibrant, highly detailed"
+default_negative = "bad quality, bad anatomy, worst quality, low quality, low resolution, extra fingers, blur, blurry, ugly, wrong proportions, watermark, image artifacts, lowres, ugly, jpeg artifacts, deformed, noisy"
+
 [models.pixart]
 description = "Extremely experimental. Use descriptive english."
 workflow = "workflow-pixart.json.tmpl"
 baseline = ""
-default_positive = "Highly detailed and intricate, looks great."
+default_positive = "High quality, trending, looks great."
 default_negative = "Low quality, grainy, ugly, cropped, error"
 
 [models.kohakuxl]
 description = "Kohaku-XL Beta7. Very anime. Use tags."
 workflow = "workflow-sdxl-kohaku.json.tmpl"
 baseline = "kohakuXLBeta_beta7Pro.safetensors"
-default_positive = "(by Stanley Artgerm Lau, WLOP, Rossdraws, James Jean, Andrei Riabovitchev, Marc Simonetti, Yoshitaka Amano. background by James Jean and Gustav Klimt, light by Julie Bell, 4k. Studio Ghibli:0.5)"
+default_positive = ""
 default_negative = "bad anatomy, disembodied limb, realistic, blurry, watercolor"
 
 [models.shugochara]
 description = "Highly broken SC model. Use for fun."
 workflow = "workflow-sdxl-norefiner-shugo.json.tmpl"
-baseline = "explicitFreedomNSFW_alpha.safetensors"
-default_positive = "shugo chara"
-default_negative = "chibi, (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, sketch, 3d, vector art"
+baseline = "kohakuXLBeta_beta7Pro.safetensors"
+default_positive = ""
+default_negative = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, sketch, 3d, vector art"
 
 [models.zavychromaxl]
 description = "ZavyChroma XL. Realism & Magic. Use English."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "zavychromaxl_v21.safetensors"
+baseline = "zavychromaxl_v30.safetensors"
 default_positive = ""
 default_negative = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, anime, illustration, sketch, 3d, vector art, cartoon, painting"
 
@@ -107,7 +114,7 @@ default_negative = "low quality, deformed, glitch, noisy, stock photo"
 [models.breakdomainxl]
 description = "BreakDomain XL. Best for stylized art. Use tags."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "BreakDomainXL_V05g.safetensors"
+baseline = "breakdomainxl_V06d.safetensors"
 default_positive = "absurdres, highres, ultra detailed"
 default_negative = "(low quality, worst quality, lowres, monochrome, photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.5)"
 

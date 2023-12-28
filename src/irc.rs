@@ -120,6 +120,13 @@ impl IrcTask {
                 raw: params.into(),
                 source: crate::generator::Source::Irc,
             },
+            "ask" => {
+                let text = context.prompt_generator.gpt3_5(
+                    "Answer the question concisely but accurately: ",
+                    params).await?;
+                send(sender, target, &text).await?;
+                return Ok(());
+            }
             "help" => {
                 let text = help::handler(context, "!", params).await
                     .context("While creating help")?;
@@ -131,7 +138,7 @@ impl IrcTask {
                     filled = text.0 + "\n\nOther topics:\n" + text.1.into_iter().map(|s| format!("- {}", s)).collect::<Vec<_>>().join("\n").as_str();
                 }
                 // This is verbose. Unconditionally send by PM.
-                if target.starts_with('#') && (filled.len() > 350*4 || filled.lines().count() > 4) {
+                if target.starts_with('#') && (filled.len() > 350*6 || filled.lines().count() > 6) {
                     send(sender, target, "Sending help by PM.").await?;
                     send(sender, nick, &filled).await?;
                 } else {
