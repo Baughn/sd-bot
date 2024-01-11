@@ -107,18 +107,65 @@ impl IrcTask {
         cmd: &str,
         params: &str,
     ) -> Result<()> {
-        let request = match cmd {
-            "dream" => UserRequest {
+        let requests = match cmd {
+            "dream" => vec![UserRequest {
                 user: nick.into(),
                 dream: Some(params.into()),
                 raw: params.into(),
                 source: crate::generator::Source::Irc,
-            },
-            "prompt" => UserRequest {
+            }],
+            "prompt" => vec![UserRequest {
                 user: nick.into(),
                 dream: None,
                 raw: params.into(),
                 source: crate::generator::Source::Irc,
+            }],
+            "scan" => {
+                // Similar to prompt, but with every single model.
+                let mut requests = Vec::new();
+                for (model, c) in context.config.with_config(|c| c.models.clone()).await {
+                    requests.push(UserRequest {
+                        user: nick.into(),
+                        dream: None,
+                        raw: format!("{} -m {}", params, model),
+                        source: crate::generator::Source::Irc,
+                    });
+                }
+                requests
+            },
+            "smoketest" => {
+                if nick != "Baughn" {
+                    send(sender, target, "You're not the admin.").await?;
+                    return Ok(());
+                } else {
+                    let test_prompt = "A cute girl wearing a flower in her hair";
+                    // Generate 2 pictures per workflow.
+                    // Since workflows are per-model, this really means iterating through models to
+                    // find all the unique workflows, and using one model per workflow.
+                    let mut workflows = std::collections::HashMap::new();
+                    for (model, c) in context.config.with_config(|c| c.models.clone()).await {
+                        let workflow = c.workflow.clone();
+                        workflows.insert(workflow, model.clone());
+                    }
+                    // Return a lot of generation requests.
+                    let mut requests = workflows
+                        .into_iter()
+                        .map(|(workflow, model)| UserRequest {
+                            user: nick.into(),
+                            dream: None,
+                            raw: format!("{} -m {}", test_prompt, model),
+                            source: crate::generator::Source::Irc,
+                        })
+                        .collect::<Vec<_>>();
+                    requests
+                }
+            },
+            "emul" => {
+                let text = context.prompt_generator.gpt3_5(
+                    "Respond in the style of Emul, who is a teenage anthropomorphic vorpal rabbit girl from a magical world. Be adorable, snarky if someone asks you something dumb, and avoid behaving like an assistant: ",
+                    params).await?;
+                send(sender, target, &text).await?;
+                return Ok(());
             },
             "ask" => {
                 let text = context.prompt_generator.gpt3_5(
@@ -155,49 +202,59 @@ impl IrcTask {
             send(sender, target, &format!("{}: {}", nick, entry)).await?;
         }
         // It's fine, generate the images.
-        let mut events = Box::pin(context.image_generator.generate(request, !target.starts_with('#')).await);
-        while let Some(event) = events.next().await {
-            trace!("Event: {:?}", event);
-            match event {
-                crate::generator::GenerationEvent::Completed(c) => {
-                    let overview = utils::overview_of_pictures(&c.images)?;
-                    let all: Vec<Vec<u8>> = std::iter::once(overview)
-                        .chain(c.images.into_iter())
-                        .collect();
-                    // Send the results to the user.
-                    let urls = utils::upload_images(&context.config, &c.uuid, all)
-                        .await
-                        .context("failed to upload images")?;
-                    send(sender, target, &format!("{}: {}", nick, urls[0])).await?;
-                }
-                crate::generator::GenerationEvent::Error(e) => {
-                    send(sender, target, &format!("{}: Error: {:#}", nick, e)).await?;
-                }
-                crate::generator::GenerationEvent::GPTCompleted(req) => {
-                    send(
-                        sender,
-                        target,
-                        &format!("{}: Dreaming about `{}`", nick, req.raw),
-                    )
-                    .await?;
-                }
-                crate::generator::GenerationEvent::Parsed(_parsed) => {
-                    // Do nothing.
-                }
-                crate::generator::GenerationEvent::Queued(n) => {
-                    if n >= 3 {
+        let verbose = requests.len() > 1;
+        for request in requests {
+            let prompt = format!("{}: {}", nick, request.raw);
+            let mut events = Box::pin(context.image_generator.generate(request, !target.starts_with('#')).await);
+            while let Some(event) = events.next().await {
+                trace!("Event: {:?}", event);
+                match event {
+                    crate::generator::GenerationEvent::Completed(c) => {
+                        let overview = utils::overview_of_pictures(&c.images)?;
+                        let all: Vec<Vec<u8>> = std::iter::once(overview)
+                            .chain(c.images.into_iter())
+                            .collect();
+                        // Send the results to the user.
+                        let urls = utils::upload_images(&context.config, &c.uuid, all)
+                            .await
+                            .context("failed to upload images")?;
+                        if verbose {
+                            send(sender, target, &prompt).await?;
+                        }
+                        send(sender, target, &format!("{}: {}", nick, urls[0])).await?;
+                    }
+                    crate::generator::GenerationEvent::Error(e) => {
+                        if verbose {
+                            send(sender, target, &prompt).await?;
+                        }
+                        send(sender, target, &format!("{}: Error: {:#}", nick, e)).await?;
+                    }
+                    crate::generator::GenerationEvent::GPTCompleted(req) => {
                         send(
                             sender,
                             target,
-                            &format!("{}: You're in position {} in the queue.", nick, n),
+                            &format!("{}: Dreaming about `{}`", nick, req.raw),
                         )
                         .await?;
                     }
-                }
-                crate::generator::GenerationEvent::Generating(_) => {
-                    // Ignoring this one.
-                }
-            };
+                    crate::generator::GenerationEvent::Parsed(_parsed) => {
+                        // Do nothing.
+                    }
+                    crate::generator::GenerationEvent::Queued(n) => {
+                        if n >= 3 {
+                            send(
+                                sender,
+                                target,
+                                &format!("{}: You're in position {} in the queue.", nick, n),
+                            )
+                            .await?;
+                        }
+                    }
+                    crate::generator::GenerationEvent::Generating(_) => {
+                        // Ignoring this one.
+                    }
+                };
+            }
         }
         debug!("Command completed");
         Ok(())

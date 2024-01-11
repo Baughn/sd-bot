@@ -83,7 +83,7 @@
       "steps": __FIRST_PASS_END_AT_STEP__,
       "cfg": __REFINER_CFG__,
       "sampler_name": "dpmpp_2m_sde_gpu",
-      "scheduler": "karras",
+      "scheduler": "exponential",
       "denoise": 0.35,
       "mode_type": "Linear",
       "tile_width": __WIDTH_d2__,
@@ -119,7 +119,8 @@
         "14",
         0
       ],
-      "force_uniform_tiles": "enable"
+      "force_uniform_tiles": "enable",
+      "tiled_decode": "disable"
     },
     "class_type": "UltimateSDUpscale"
   },
