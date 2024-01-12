@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "yamerxl"
+default = "animaginexl"
 sdxl = "sdxl_1.0"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
@@ -32,7 +32,14 @@ sdxl = "sdxl_1.0"
 "Drawings" = "breakdomainxl"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
-"Anime_XL" = "kohakuxl"
+"Anime_XL" = "animaginexl"
+
+[models.animaginexl]
+description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+baseline = "animagineXLV3_v30.safetensors"
+default_positive = ""
+default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models.yamerxl]
 description = "Yamer's anime. Use tags."

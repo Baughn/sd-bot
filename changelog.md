@@ -7,10 +7,11 @@
 
 # Tips
 - Prompt book: https://docs.google.com/presentation/d/1HEcE3qOAGVujcDaNQbiLXyx7zwKHQkXEILsYBhsot7A/edit
+- For animaginexl, use https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
 
 # Models
-- Default model swapped to YamerXL. The previous model was `-m BreakDomainXL`.
-- Anime_XL alias swapped to KohakuXL. This is a partially-completed full finetune based on Danbooru. Let's give it a try.
+- Default model swapped to animaginexl. The previous model was `-m yamerxl`. Tag as per https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
+- Anime_XL alias swapped to animaginexl. Tag as per https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
 - Added the `pixart`, um, "model". This is actually not Stable Diffusion at all. It's an extremely experimental model that should be extremely good at English.
 - Try `-m pixart` for anything complicated. It might work, you never know.
 - Added ZavyChromaXL v3, which specializes in fantasy realism. Use English. This is the default for magic-themed dreams.
