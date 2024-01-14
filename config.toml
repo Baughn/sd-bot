@@ -26,6 +26,7 @@ channels = ["#questionablebotting", "#questionablequesting"]
 [aliases]
 default = "animaginexl"
 sdxl = "sdxl_1.0"
+"Cartoon" = "ponyxl"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
 "Realistic" = "Dreamshaper"
@@ -33,6 +34,13 @@ sdxl = "sdxl_1.0"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "Anime_XL" = "animaginexl"
+
+[models.ponyxl]
+description = "Pony Diffusion XL. Use [english], [tags]"
+workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
+baseline = "ponyDiffusionV6XL_v6.safetensors"
+default_positive = "(score_9, score_8_up, score_7_up, score_6_up:0.6)"
+default_negative = ""
 
 [models.animaginexl]
 description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"

@@ -1,0 +1,101 @@
+{
+  "1": {
+    "inputs": {
+      "base_ckpt_name": "__BASE_CHECKPOINT__",
+      "base_clip_skip": -2,
+      "refiner_ckpt_name": "None",
+      "refiner_clip_skip": -2,
+      "positive_ascore": 6,
+      "negative_ascore": 2,
+      "vae_name": "Baked VAE",
+      "positive": "__PROMPT_A__, __PROMPT_B__",
+      "negative": "__NEGATIVE_PROMPT__",
+      "empty_latent_width": __WIDTH__,
+      "empty_latent_height": __HEIGHT__,
+      "batch_size": __BATCH_SIZE__,
+      "token_normalization": "none",
+      "weight_interpretation": "comfy"
+    },
+    "class_type": "Eff. Loader SDXL"
+  },
+  "vae": {
+    "inputs": {
+      "vae_name": "sdxl_vae_fp16_fix.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
+  "sampler": {
+    "inputs": {
+      "sampler_state": "Script",
+      "noise_seed": __SEED__,
+      "steps": __STEPS_TOTAL__,
+      "cfg": __BASE_CFG__,
+      "sampler_name": "dpmpp_2m_sde_gpu",
+      "scheduler": "exponential",
+      "start_at_step": 0,
+      "refine_at_step": -1,
+      "preview_method": "none",
+      "vae_decode": "false",
+      "sdxl_tuple": [
+        "1",
+        0
+      ],
+      "latent_image": [
+        "1",
+        1
+      ],
+      "script": [
+        "7",
+        0
+      ],
+      "optional_vae": [
+        "vae",
+        0
+      ]
+    },
+    "class_type": "KSampler SDXL (Eff.)"
+  },
+  "7": {
+    "inputs": {
+      "latent_upscaler": "nearest-exact",
+      "pixel_upscaler": "4x_NMKD-Siax_200k.pth",
+      "upscale_by": 1.25,
+      "hires_steps": 12,
+      "denoise": 0.56,
+      "iterations": 1,
+      "upscale_type": "pixel",
+      "hires_ckpt_name": "(use same)",
+      "seed": -1,
+      "use_same_seed": true,
+      "use_controlnet": false,
+      "control_net_name": "undefined",
+      "strength": 1.0,
+      "preprocessor": "CannyEdgePreprocessor",
+      "preprocessor_imgs": false
+    },
+    "class_type": "HighRes-Fix Script"
+  },
+  "decoded": {
+    "inputs": {
+      "samples": [
+        "sampler",
+        1
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "saved": {
+    "inputs": {
+      "filename_prefix": "SDBot",
+      "images": [
+        "decoded",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  }
+}
