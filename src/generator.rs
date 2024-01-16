@@ -93,7 +93,7 @@ impl Default for ParsedRequest {
             negative_prompt: "".to_string(),
             use_pos_default: true,
             use_neg_default: true,
-            guidance_scale: 9.0,
+            guidance_scale: 6.0,
             aesthetic_scale: 20.0,
             steps: 40,
             count: 2,
@@ -332,7 +332,7 @@ impl ParsedRequest {
         } else {
             self.negative_prompt.clone()
         };
-        let steps_cutover = (self.steps as f32 * 0.66) as u32;
+        let steps_cutover = (self.steps as f32 * 0.5) as u32;
 
         fn json_encode_string(s: &str) -> String {
             let mut result = String::new();

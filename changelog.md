@@ -7,10 +7,9 @@
 
 # Tips
 - Prompt book: https://docs.google.com/presentation/d/1HEcE3qOAGVujcDaNQbiLXyx7zwKHQkXEILsYBhsot7A/edit
-- For animaginexl, use https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
 
 # Models
-- Default model swapped to animaginexl. The previous model was `-m yamerxl`. Tag as per https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
+- Default model swapped to counterfeitxl the previous model was `-m animaginexl-realistic`. A combination of tags and english should work well.
 - Anime_XL alias swapped to animaginexl. Tag as per https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
 - Added the `pixart`, um, "model". This is actually not Stable Diffusion at all. It's an extremely experimental model that should be extremely good at English.
 - Try `-m pixart` for anything complicated. It might work, you never know.

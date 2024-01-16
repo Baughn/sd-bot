@@ -4,7 +4,7 @@ command_prefix = ""
 client_id = "GANBot"
 host = "localhost"
 port = 8188
-webhost = "brage.info"
+webhost = "saya.brage.info"
 webdir = "web"
 webdir_internal = "GAN/ganbot2"
 
@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "animaginexl"
+default = "counterfeitxl"
 sdxl = "sdxl_1.0"
 "Cartoon" = "ponyxl"
 "Painterly" = "zavyyumexl"
@@ -33,7 +33,22 @@ sdxl = "sdxl_1.0"
 "Drawings" = "breakdomainxl"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
-"Anime_XL" = "animaginexl"
+"AnimeXL" = "animaginexl"
+
+[models.counterfeitxl]
+description = "Counterfeit XL. Pretty good for anime. Use english! And tags."
+workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
+baseline = "counterfeitxl_v25.safetensors"
+refiner = "animagineXLV3_v30.safetensors"
+default_positive = ""
+default_negative = "embedding:negativeXL_D, (low quality, worst quality:1.2), bad anatomy, fewer digits"
+
+[models.counterfeit]
+description = "Counterfeit v3, a great 1.5 model. Use english! And tags."
+workflow = "workflow-sd15-baseonly.json.tmpl"
+baseline = "CounterfeitV30_v30.safetensors"
+default_positive = ""
+default_negative = "embedding:easynegativev2"
 
 [models.ponyxl]
 description = "Pony Diffusion XL. Use [english], [tags]"
@@ -42,11 +57,18 @@ baseline = "ponyDiffusionV6XL_v6.safetensors"
 default_positive = "(score_9, score_8_up, score_7_up, score_6_up:0.6)"
 default_negative = ""
 
+[models.animaginexl-realistic]
+description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release. This variant is tuned for realism."
+workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
+baseline = "animagineXLV3_v30.safetensors"
+default_positive = "masterpiece, best quality, newest, realistic"
+default_negative = "3d, cg, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
+
 [models.animaginexl]
 description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
-workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
 baseline = "animagineXLV3_v30.safetensors"
-default_positive = ""
+default_positive = "masterpiece, best quality, newest"
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models.yamerxl]
@@ -80,9 +102,9 @@ default_negative = "(deformed, distorted, disfigured:1.3), poorly drawn, bad ana
 [models.zavychromaxl]
 description = "ZavyChroma XL. Realism & Magic. Use English."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "zavychromaxl_v30.safetensors"
+baseline = "zavychromaxl_v31.safetensors"
 default_positive = ""
-default_negative = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, anime, illustration, sketch, 3d, vector art, cartoon, painting"
+default_negative = "(deformed, distorted, disfigured:1), (poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs:0.5), (disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, anime, illustration, sketch, 3d, vector art, cartoon, painting:0.3)"
 
 [models.dreamshaper8]
 description = "Dreamshaper 8; a modern SD 1.5 model. Good for realism, poor for complex scenes."
