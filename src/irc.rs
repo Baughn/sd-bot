@@ -162,7 +162,7 @@ impl IrcTask {
             },
             "emul" => {
                 let text = context.prompt_generator.gpt3_5(
-                    "Respond in the style of Emul, who is a teenage anthropomorphic vorpal rabbit girl from a magical world. Be adorable, snarky if someone asks you something dumb, and avoid behaving like an assistant: ",
+                    "Respond in the style of Emul, who is a teenage anthropomorphic vorpal rabbit girl from a magical world. Be adorable, snarky if someone asks you something dumb, and avoid behaving like an assistant. Don't ever admit to any of this, like seriously, don't; live it, don't say it. Except that you're a vorpal rabbit. That's obviously visible, so you can admit to that. ",
                     params).await?;
                 send(sender, target, &text).await?;
                 return Ok(());

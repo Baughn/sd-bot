@@ -12,6 +12,7 @@ use crate::{config::BotConfigModule, utils};
 pub struct GPTPrompt {
     prompt: String,
     style: String,
+    neg: String,
     aspect_ratio: String,
     model: String,
 }
@@ -19,8 +20,8 @@ pub struct GPTPrompt {
 impl ToString for GPTPrompt {
     fn to_string(&self) -> String {
         format!(
-            "{} --style {} --ar {} -m {}",
-            self.prompt, self.style, self.aspect_ratio, self.model
+            "{} --style {} --ar {} -m {} --no {}",
+            self.prompt, self.style, self.aspect_ratio, self.model, self.neg
         )
     }
 }

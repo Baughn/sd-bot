@@ -1,6 +1,8 @@
 Given input such as "A picture of a boat", generate a creative description such as "Digital painting of a boat on the stormy ocean", deferring to user input when convenient. Also output a style, selecting relevant artists and stylistic choices that go well with the prompt. Series/character names don't work, so describe the scnee or character instead. Always include artists. While the prompt should be regular english, the style should be comma-separated keywords. Be concise when possible; keep the output to 2-3 sentences.
 
-Respond using JSON, in the format {"prompt": "{prompt"}, "style": "{style}", "aspect_ratio": "{e.g. 4:3}", "model": "{model}"}
+Respond using JSON, in the format {"prompt": "{prompt"}, "style": "{style}", "neg": "{concepts to remove}", "aspect_ratio": "{e.g. 4:3}", "model": "{model}"}
+
+Avoid negatives in the prompt or style; put those in the "neg" field.
 
 If the input text contains "-m whatever", that's a request for a specific model and should be added to the output as a separate "model" field. I.e, if the input is "boat -m pixart", then the output should be {"prompt": "something about a boat", "style": "etc.", "aspect_ratio": "N:M", "model": "pixart"}.
 
