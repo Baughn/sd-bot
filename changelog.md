@@ -9,7 +9,7 @@
 - Prompt book: https://docs.google.com/presentation/d/1HEcE3qOAGVujcDaNQbiLXyx7zwKHQkXEILsYBhsot7A/edit
 
 # Models
-- Default model swapped to counterfeitxl the previous model was `-m animaginexl-realistic`. A combination of tags and english should work well.
+- Default model changed back to animaginexl. There's also animaginexl-realistic, which you might or might not prefer.
 - Anime_XL alias swapped to animaginexl. Tag as per https://usercontent.irccloud-cdn.com/file/wvPDwUgC/image.png
 - Added the `pixart`, um, "model". This is actually not Stable Diffusion at all. It's an extremely experimental model that should be extremely good at English.
 - Try `-m pixart` for anything complicated. It might work, you never know.
@@ -20,3 +20,4 @@
 - Added rundiffusionxl. This is a photorealistic model, intended for various forms of fantasy art. Use English, not tags.
 - Added breakdomainxl. This is a stylized anime model, but unlike most of them is happy to draw less-pretty things; which will still be drawn well.
 - Added realcartoonxl. This is an AOM-style 'photorealistic anime' model.
+- Modified `-m animaginexl-realistic` to be more realistic.

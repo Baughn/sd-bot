@@ -24,7 +24,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "counterfeitxl"
+default = "animaginexl"
 sdxl = "sdxl_1.0"
 "Cartoon" = "ponyxl"
 "Painterly" = "zavyyumexl"
@@ -34,6 +34,13 @@ sdxl = "sdxl_1.0"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "AnimeXL" = "animaginexl"
+
+[models.thinkdiffusionxl]
+description = "ThinkDiffusion XL. Use English."
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+baseline = "thinkdiffusionxl_v10.safetensors"
+default_positive = ""
+default_negative = "low quality, worst quality, lowres, monochrome, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark"
 
 [models.counterfeitxl]
 description = "Counterfeit XL. Pretty good for anime. Use english! And tags."
@@ -61,14 +68,15 @@ default_negative = ""
 description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release. This variant is tuned for realism."
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
 baseline = "animagineXLV3_v30.safetensors"
-default_positive = "masterpiece, best quality, newest, realistic"
-default_negative = "3d, cg, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
+refiner = "zavychromaxl_v31.safetensors"
+default_positive = "photorealistic, realistic, masterpiece, best quality, newest"
+default_negative = "rating:sensitive, nsfw, shiny, doll, render, drawing, anime, cartoon, 3d, cg, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models.animaginexl]
 description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
 baseline = "animagineXLV3_v30.safetensors"
-default_positive = "masterpiece, best quality, newest"
+default_positive = ""
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models.yamerxl]
@@ -78,10 +86,17 @@ baseline = "sdxlYamersAnimeUltra_ysAnimeV5.safetensors"
 default_positive = "absurdres, vibrant, highly detailed"
 default_negative = "bad quality, bad anatomy, worst quality, low quality, low resolution, extra fingers, blur, blurry, ugly, wrong proportions, watermark, image artifacts, lowres, ugly, jpeg artifacts, deformed, noisy"
 
+[models.pixart2]
+description = "Use descriptive English."
+workflow = "workflow-pixart.json.tmpl"
+baseline = "PixArt-XL-2-1024-ControlNet.pth"
+default_positive = "High quality, trending, detailed, vibrant."
+default_negative = "Low quality, lowres, grainy, ugly, cropped, error"
+
 [models.pixart]
 description = "Extremely experimental. Use descriptive english."
 workflow = "workflow-pixart.json.tmpl"
-baseline = ""
+baseline = "PixArt-XL-2-1024-MS.pth"
 default_positive = "High quality, trending, looks great."
 default_negative = "Low quality, grainy, ugly, cropped, error"
 

@@ -453,7 +453,7 @@ impl ImageGeneratorModule {
         // it's been a second.
         let mut filenames: Option<Vec<String>> = None;
         let mut ws_client = ws::connect_async(format!("ws://{}:{}/ws?clientId={}", backend.host, backend.port, prompt_id)).await.context("failed to connect to websocket")?.0;
-        for _ in 0..30 {
+        for _ in 0..10 {
             select! {
                 msg = ws_client.next() => {
                     trace!("Got websocket message: {:?}", msg);
