@@ -200,7 +200,7 @@ impl IrcTask {
             "scan" => {
                 // Similar to prompt, but with every single model.
                 let mut requests = Vec::new();
-                for (model, c) in context.config.with_config(|c| c.models.clone()).await {
+                for (model, _) in context.config.with_config(|c| c.models.clone()).await {
                     requests.push(UserRequest {
                         user: nick.into(),
                         dream: None,
@@ -227,9 +227,9 @@ impl IrcTask {
                         workflows.insert(workflow, model.clone());
                     }
                     // Return a lot of generation requests.
-                    let mut requests = workflows
+                    let requests = workflows
                         .into_iter()
-                        .map(|(workflow, model)| UserRequest {
+                        .map(|(_, model)| UserRequest {
                             user: nick.into(),
                             dream: None,
                             raw: format!("{} -m {}", test_prompt, model),
@@ -253,7 +253,7 @@ impl IrcTask {
                 // There's no guarantee of newlines, so we just look for the uppercase PLAN.
                 log::info!("Emul response: {}", text);
                 let plan = text.split("PLAN:").nth(1).map(|s| s.trim());
-                if let Some(plan) = plan {
+                if let Some(_plan) = plan {
                     let response = text.split("RESPONSE:").nth(1).map(|s| s.trim());
                     if let Some(response) = response {
                         send(sender, target, &format!("{}: {}", nick, response)).await?;
@@ -347,7 +347,7 @@ impl IrcTask {
                         send(sender, target, &format!("{}: Error: {:#}", nick, e)).await?;
                     }
                     crate::generator::GenerationEvent::GPTCompleted(req) => {
-                        if let Some(dream) = req.dream {
+                        if req.dream.is_some() {
                             send(
                                 sender,
                                 target,
@@ -391,19 +391,19 @@ lazy_static! {
 }
 
 async fn send(sender: &Sender, target: &str, text: &str) -> Result<()> {
-    let LENGTH_LIMIT: usize = 450 - target.len();
-    let lines = utils::segment_lines(text, LENGTH_LIMIT);
-    // Acquire the lock to create the inner mutex if it doesn't exist.
+    let length_limit: usize = 480 - target.len();
+    let lines = utils::segment_lines(text, length_limit);
     {
+        // Make sure the inner mutex exists.
         let mut target_lock = TARGET_MUTEXES.write().await;
-        let target_lock = target_lock
+        target_lock
             .entry(target.to_owned())
             .or_insert_with(|| tokio::sync::Mutex::new(()));
     }
     // Acquire the inner mutex.
     let target_outer_guard = TARGET_MUTEXES.read().await;
     let target_inner_lock = target_outer_guard.get(target).unwrap();
-    let target_inner_guard = target_inner_lock.lock().await;
+    let _target_inner_guard = target_inner_lock.lock().await;
     for line in lines {
         trace!("Sending line: {} to {}", line, target);
         sender

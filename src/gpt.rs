@@ -1,9 +1,10 @@
 use std::io::Write;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use log::trace;
 use openai_api_rs::v1::chat_completion::{self, ChatCompletionRequest};
 use serde::Deserialize;
+use std::fmt::{self, Display};
 
 use crate::{config::BotConfigModule, utils};
 
@@ -18,9 +19,10 @@ pub struct GPTPrompt {
     pub comment: String,
 }
 
-impl ToString for GPTPrompt {
-    fn to_string(&self) -> String {
-        format!(
+impl Display for GPTPrompt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
             "{} --style {} --ar {} -m {} --no {}",
             self.prompt, self.style, self.aspect_ratio, self.model, self.neg
         )
@@ -29,16 +31,13 @@ impl ToString for GPTPrompt {
 
 #[derive(Clone)]
 pub struct GPTPromptGeneratorModule {
+    #[allow(dead_code)]
     config: BotConfigModule,
 }
 
 impl GPTPromptGeneratorModule {
     pub fn new(config: BotConfigModule) -> Self {
         Self { config }
-    }
-
-    pub async fn gemini(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
-        unimplemented!()
     }
 
     // TODO: Fix this duplication.

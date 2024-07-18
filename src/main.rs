@@ -4,18 +4,14 @@ use clap::Parser;
 use config::BotConfigModule;
 use futures::{prelude::*, stream::FuturesUnordered};
 use generator::ImageGeneratorModule;
-use log::{info, error};
+use log::{error, info};
 
-use crate::{
-    db::DatabaseModule,
-    gpt::GPTPromptGeneratorModule,
-};
+use crate::{db::DatabaseModule, gpt::GPTPromptGeneratorModule};
 
 mod changelog;
 mod config;
 mod db;
 mod discord;
-mod flow_generator;
 mod generator;
 mod gpt;
 mod help;
@@ -56,7 +52,8 @@ async fn main() -> Result<()> {
     // Start backends.
     let db = DatabaseModule::new(config.clone()).await?;
     let prompt_generator = GPTPromptGeneratorModule::new(config.clone());
-    let image_generator = ImageGeneratorModule::new(db.clone(), config.clone(), prompt_generator.clone())?;
+    let image_generator =
+        ImageGeneratorModule::new(db.clone(), config.clone(), prompt_generator.clone())?;
 
     let context = BotContext {
         config: config.clone(),

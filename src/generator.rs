@@ -127,14 +127,6 @@ impl Debug for CompletedRequest {
 type JpegBlob = Vec<u8>;
 
 
-// Implementation-only
-#[derive(Debug, Serialize)]
-struct ComfyUIRequest {
-    prompt: String,
-    clientid: String,
-}
-
-
 impl ParsedRequest {
     pub fn parse_aspect_ratio(stride: u32, target: u32, value: &str) -> Result<(u32, u32)> {
         let mut parts = value.splitn(2, ':');
@@ -527,7 +519,7 @@ impl ImageGeneratorModule {
             // This can contain multiple outputs, but we only care about whichever one
             // has a non-empty images array.
             // We'll just take the first one that has images.
-            let maybe_filenames = outputs.iter().find_map(|(k, v)| {
+            let maybe_filenames = outputs.iter().find_map(|(_, v)| {
                 let images = v.get("images")?;
                 let images = images.as_array()?;
                 if images.is_empty() {
