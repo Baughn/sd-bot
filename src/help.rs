@@ -10,7 +10,7 @@ use crate::BotContext;
 /// include data from the current bot configuration, which is more or less
 /// why it's all in code in here. Regardless, you also get the option of
 /// "asking it questions" by feeding the full thing to GPT-3.5.
-/// 
+///
 /// Probably the right thing to do here is to return a lazily evaluated tree...
 /// But that's a lot of work, and computers are fast.
 /// So we just return a giant tree.
@@ -23,7 +23,11 @@ struct HelpText {
 }
 
 /// Given a help request, returns a help response.
-pub async fn handler(context: &BotContext, prefix: &str, request: &str) -> Result<(String, Vec<&'static str>)> {
+pub async fn handler(
+    context: &BotContext,
+    prefix: &str,
+    request: &str,
+) -> Result<(String, Vec<&'static str>)> {
     let request = request.trim();
     // Let's first check if matches a predefined help topic.
     let r = root(context, prefix).await;
@@ -44,13 +48,20 @@ pub async fn handler(context: &BotContext, prefix: &str, request: &str) -> Resul
             // We had a path element, but didn't find a match.
             // Defer to GPT.
             info!("Generating help response for {}", request);
-            let response = handle_with_gpt(context, prefix, request).await.context("While creating help")?;
+            let response = handle_with_gpt(context, prefix, request)
+                .await
+                .context("While creating help")?;
             return Ok((response, Vec::new()));
         }
     }
     // If we got here, we've found a predefined help topic.
     // Trim the lines, I guess.
-    let trimmed = text.text.lines().map(|s| s.trim()).collect::<Vec<_>>().join("\n");
+    let trimmed = text
+        .text
+        .lines()
+        .map(|s| s.trim())
+        .collect::<Vec<_>>()
+        .join("\n");
 
     Ok((trimmed, text.children.keys().cloned().collect()))
 }
@@ -58,21 +69,21 @@ pub async fn handler(context: &BotContext, prefix: &str, request: &str) -> Resul
 async fn handle_with_gpt(context: &BotContext, prefix: &str, request: &str) -> Result<String> {
     let mut prompt = format!(
         "Here is some documentation:\n\n{}",
-        full_text(&root(context, prefix).await, 1, ""));
+        full_text(&root(context, prefix).await, 1, "")
+    );
     prompt += "\nGiven the above, answer the following question. Be as concise as possible, but no more. If the question isn't about image generation, then _ONLY_ respond with a request to use !ask instead of !help. \n\n";
     context.prompt_generator.gpt3_5(&prompt, request).await
 }
 
 /// Recursive function that just collapses the tree.
 fn full_text(text: &HelpText, depth: usize, position: &str) -> String {
-    let mut ret = format!("{} {}: ", "#".repeat(depth), position); 
+    let mut ret = format!("{} {}: ", "#".repeat(depth), position);
     ret += &text.text;
     for (key, child) in text.children.iter() {
         ret += &full_text(child, depth + 1, &format!("{}.{}", position, key));
     }
     ret
 }
-
 
 async fn root(context: &BotContext, prefix: &str) -> HelpText {
     HelpText {
@@ -135,13 +146,12 @@ fn prompting(_context: &BotContext) -> HelpText {
 
 async fn models(context: &BotContext) -> HelpText {
     // Grab a list of models.
-    let (aliases, models) = context.config.with_config(|c| (c.aliases.clone(), c.models.clone())).await;
+    let (aliases, models) = context
+        .config
+        .with_config(|c| (c.aliases.clone(), c.models.clone()))
+        .await;
     let text = "This list of models is sorted by genre, but also workflow. You should be able to tell which models are XL and which are 1.5.\n";
-    let mut text: Vec<String> = vec![
-        text.into(),
-        "\n".into(),
-        "## Aliases\n".into(),
-    ];
+    let mut text: Vec<String> = vec![text.into(), "\n".into(), "## Aliases\n".into()];
 
     // First the aliases, aka. "genres".
     let aliases = aliases.iter().map(|(alias, mut target)| {
@@ -149,25 +159,29 @@ async fn models(context: &BotContext) -> HelpText {
         while let Some(deref) = aliases.get(target) {
             target = deref;
         }
-        let config = models.get(target).expect("Alias points to non-existent model");
+        let config = models
+            .get(target)
+            .expect("Alias points to non-existent model");
         format!("-m {} ({}) — {}\n", alias, target, config.description)
     });
     text.extend(aliases);
 
     // Make a list of workflows.
-    let workflows = models.iter().map(|(_, v)| {
-        v.workflow.as_str()
-    }).collect::<HashSet<_>>();
+    let workflows = models
+        .values()
+        .map(|v| v.workflow.as_str())
+        .collect::<HashSet<_>>();
 
     // Next we'll make a list of models for each workflow.
     let workflows = workflows.iter().map(|workflow| {
-        let models = models.iter().filter(|(_, v)| v.workflow == *workflow).map(|(k, v)| {
-            format!("-m {} — {}", k, v.description)
-        }).collect::<Vec<_>>();
+        let models = models
+            .iter()
+            .filter(|(_, v)| v.workflow == *workflow)
+            .map(|(k, v)| format!("-m {} — {}", k, v.description))
+            .collect::<Vec<_>>();
         format!("\n## {}\n{}", workflow, models.join("\n"))
     });
     text.extend(workflows);
-
 
     HelpText {
         children: HashMap::new(),
@@ -188,6 +202,7 @@ fn tips_and_tricks(_context: &BotContext) -> HelpText {
         text: "Sorry, tips and tricks aren't implemented yet. I'm working on it.\n
         \n
         Once they are, this will be where you can see the full list.\n
-        But not to worry. You'll see them without going looking.\n".to_string(),
+        But not to worry. You'll see them without going looking.\n"
+            .to_string(),
     }
 }

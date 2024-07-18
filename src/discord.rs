@@ -73,7 +73,7 @@ impl Handler {
                 let prompt = command
                     .data
                     .options
-                    .get(0)
+                    .first()
                     .context("Expected prompt")?
                     .resolved
                     .as_ref()
@@ -253,10 +253,8 @@ impl Handler {
                 GenerationEvent::Generating(percent) => {
                     // Erase the Queued line, or a previous Generating line.
                     // This should be index 1, but we'll just filter them all out.
-                    status_text = status_text
-                        .into_iter()
-                        .filter(|l| !(l.starts_with("Queued") || l.starts_with("Generating")))
-                        .collect();
+                    status_text
+                        .retain(|l| !(l.starts_with("Queued") || l.starts_with("Generating")));
                     // Add the new Generating line.
                     status_text.insert(1, format!("Generating ({}%)", percent));
                     statusbox
@@ -278,14 +276,11 @@ impl Handler {
                 }
                 GenerationEvent::Completed(c) => {
                     // Filter out Queued or Generating, again. But also Dreaming.
-                    status_text = status_text
-                        .into_iter()
-                        .filter(|l| {
-                            !(l.starts_with("Dreaming")
-                                || l.starts_with("Queued")
-                                || l.starts_with("Generating"))
-                        })
-                        .collect();
+                    status_text.retain(|l| {
+                        !(l.starts_with("Dreaming")
+                            || l.starts_with("Queued")
+                            || l.starts_with("Generating"))
+                    });
                     status_text.insert(
                         0,
                         format!(

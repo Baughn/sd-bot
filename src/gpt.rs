@@ -85,7 +85,7 @@ impl GPTPromptGeneratorModule {
         log::info!("Generated (3.5) {} to {:?}", user_prompt, result);
         let result = result
             .choices
-            .get(0)
+            .first()
             .context("No choices in GPT response")?
             .message
             .content
@@ -152,7 +152,7 @@ impl GPTPromptGeneratorModule {
         log::info!("Autocompleted {} to {:?}", dream, result);
         let result = result
             .choices
-            .get(0)
+            .first()
             .context("No choices in GPT response")?
             .message
             .content
@@ -180,7 +180,7 @@ impl GPTPromptGeneratorModule {
             .trim_start_matches("```json\n")
             .trim_end_matches("```");
         // If it isn't valid, we'll bail with the whole completion in the error.
-        let parsed = serde_json::from_str::<GPTPrompt>(&result)
+        let parsed = serde_json::from_str::<GPTPrompt>(result)
             .with_context(|| format!("While parsing GPTPrompt from {:?}", result))?;
         Ok(parsed)
     }

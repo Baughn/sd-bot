@@ -1,7 +1,6 @@
 /// A changelog, but not just any changelog!
 /// This changelog keeps track of what specific users have seen or not seen,
 /// and is used to generate a list of new features for each user.
-
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
@@ -27,15 +26,9 @@ struct Changelog {
     features: HashMap<String, ChangelogFeature>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct ChangelogFeature {
     updates: Vec<ChangelogLine>,
-}
-
-impl Default for ChangelogFeature {
-    fn default() -> Self {
-        Self { updates: Vec::new() }
-    }
 }
 
 #[derive(Debug)]
@@ -60,13 +53,19 @@ fn parse_changelog() -> Changelog {
     let mut current_feature = None;
     let mut current_update = "".to_string();
 
-    fn finish_update(features: &mut HashMap<String, ChangelogFeature>, current_feature: &mut Option<String>, current_update: &mut String) {
+    fn finish_update(
+        features: &mut HashMap<String, ChangelogFeature>,
+        current_feature: &mut Option<String>,
+        current_update: &mut String,
+    ) {
         if current_update.is_empty() {
             return;
         }
         if let Some(feature) = current_feature {
             let feature = features.entry(feature.clone()).or_default();
-            feature.updates.push(ChangelogLine::new(current_update.clone()));
+            feature
+                .updates
+                .push(ChangelogLine::new(current_update.clone()));
         }
         current_update.clear();
     }
@@ -80,7 +79,7 @@ fn parse_changelog() -> Changelog {
             if !current_update.is_empty() {
                 finish_update(&mut features, &mut current_feature, &mut current_update);
             }
-            current_update = line.to_string(); 
+            current_update = line.to_string();
             current_update += "\n";
         } else {
             current_update += line;

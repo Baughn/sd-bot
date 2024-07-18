@@ -59,9 +59,9 @@ impl IrcTask {
         let mut stream = client.stream()?;
         if let Some(ref base_pw) = self.irc_config.password {
             // The password might be literal, but more likely it's an envvar reference starting
-            // with $.
-            let pw = if base_pw.starts_with('$') {
-                std::env::var(&base_pw[1..]).context("failed to get password from envvar")?
+            // with $. In that case, we'll look it up.
+            let pw = if let Some(envvar) = base_pw.strip_prefix('$') {
+                std::env::var(envvar).context("failed to read password from environment")?
             } else {
                 base_pw.clone()
             };
@@ -84,11 +84,10 @@ impl IrcTask {
             }
             client.send_sasl("PLAIN")?;
             // Wait for an empty AUTHENTICATE message.
-            while let Some(message) = stream.next().await.transpose()? {
+            if let Some(message) = stream.next().await.transpose()? {
                 match message.command {
                     Command::AUTHENTICATE(_) => {
                         // This is what we're expecting.
-                        break;
                     }
                     _ => {
                         bail!("Unexpected message: {:?}", message);
@@ -142,7 +141,7 @@ impl IrcTask {
                     } else {
                         nick.to_owned()
                     };
-                    let (cmd, params) = match msg.trim().split_once(" ") {
+                    let (cmd, params) = match msg.trim().split_once(' ') {
                         Some((a, b)) => (a, b),
                         None => (msg.trim(), ""),
                     };
@@ -227,9 +226,9 @@ impl IrcTask {
                         workflows.insert(workflow, model.clone());
                     }
                     // Return a lot of generation requests.
-                    let requests = workflows
-                        .into_iter()
-                        .map(|(_, model)| UserRequest {
+                    workflows
+                        .into_values()
+                        .map(|model| UserRequest {
                             user: nick.into(),
                             dream: None,
                             raw: format!("{} -m {}", test_prompt, model),
@@ -237,8 +236,7 @@ impl IrcTask {
                             comment: None,
                             private: true,
                         })
-                        .collect::<Vec<_>>();
-                    requests
+                        .collect()
                 }
             }
             "emul" => {
@@ -281,11 +279,10 @@ impl IrcTask {
                     .await
                     .context("While creating help")?;
                 // Compose the extra topics on the end.
-                let filled;
-                if text.1.is_empty() {
-                    filled = text.0;
+                let filled = if text.1.is_empty() {
+                    text.0
                 } else {
-                    filled = text.0
+                    text.0
                         + "\n\nOther topics:\n"
                         + text
                             .1
@@ -293,8 +290,8 @@ impl IrcTask {
                             .map(|s| format!("- {}", s))
                             .collect::<Vec<_>>()
                             .join("\n")
-                            .as_str();
-                }
+                            .as_str()
+                };
                 // This is verbose. Unconditionally send by PM.
                 if target.starts_with('#') && (filled.len() > 350 * 6 || filled.lines().count() > 6)
                 {

@@ -175,7 +175,7 @@ impl ParsedRequest {
 
         // For a final pre-processing step, turn — (em dash) into -- (double dash).
         // Because Apple.
-        let raw = request.raw.replace("—", "--");
+        let raw = request.raw.replace('—', "--");
         let mut ar = "1:1";
 
         for token in raw.split_whitespace() {
@@ -225,7 +225,7 @@ impl ParsedRequest {
             // Then, check for flags that do take arguments.
             if let Some(value) = last_value {
                 match last_option.unwrap() {
-                    "model" | "m" => parsed.model_name = value.to_owned(),
+                    "model" | "m" => value.clone_into(&mut parsed.model_name),
                     "style" | "s" => supporting_prompt.push(value),
                     "scale" => parsed.guidance_scale = value.parse().context("Scale must be a number")?,
                     "aesthetic" | "a" => parsed.aesthetic_scale = value.parse().context("Aesthetic scale must be a number")?,
@@ -259,7 +259,7 @@ impl ParsedRequest {
         }
 
         // Do some final validation.
-        if config.models.get(&parsed.model_name).is_none() {
+        if config.models.contains_key(&parsed.model_name) {
             // That model doesn't exist, so... do a distance check.
             let mut best_similarity = 0.0;
             let mut best_model = None;
@@ -274,12 +274,12 @@ impl ParsedRequest {
                 if best_similarity < SIMILARITY_THRESHOLD {
                     bail!("Unknown model: {}. Did you mean {}?", parsed.model_name, best_model);
                 } else {
-                    parsed.model_name = best_model.clone();
+                    parsed.model_name.clone_from(best_model);
                 }
             }
         }
         while let Some(alias) = config.aliases.get(&parsed.model_name) {
-            parsed.model_name = alias.clone();
+            parsed.model_name.clone_from(alias);
         }
 
         if let Some((w, h)) = override_wh {
@@ -561,7 +561,7 @@ impl ImageGeneratorModule {
 
     /// Runs the generator loop for a single request.
     /// Locks self for an instant at startup.
-    async fn do_generate(&self, request: ParsedRequest) -> impl FusedStream + Stream<Item = GenerationEvent> {
+    async fn do_generate(&self, request: ParsedRequest) -> impl FusedStream<Item = GenerationEvent> {
         let config = {
             self.0.read().await.config.snapshot().await
         };
