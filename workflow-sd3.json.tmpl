@@ -1,0 +1,204 @@
+{
+  "6": {
+    "inputs": {
+      "text": "__COMBINED_PROMPT__",
+      "clip": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "11": {
+    "inputs": {
+      "clip_name1": "clip_g.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "clip_name3": "t5xxl_fp16.safetensors"
+    },
+    "class_type": "TripleCLIPLoader",
+    "_meta": {
+      "title": "TripleCLIPLoader"
+    }
+  },
+  "13": {
+    "inputs": {
+      "shift": 1,
+      "model": [
+        "252",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelSamplingSD3"
+    }
+  },
+  "67": {
+    "inputs": {
+      "conditioning": [
+        "71",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "68": {
+    "inputs": {
+      "start": 0.5,
+      "end": 1,
+      "conditioning": [
+        "67",
+        0
+      ]
+    },
+    "class_type": "ConditioningSetTimestepRange",
+    "_meta": {
+      "title": "ConditioningSetTimestepRange"
+    }
+  },
+  "69": {
+    "inputs": {
+      "conditioning_1": [
+        "68",
+        0
+      ],
+      "conditioning_2": [
+        "70",
+        0
+      ]
+    },
+    "class_type": "ConditioningCombine",
+    "_meta": {
+      "title": "Conditioning (Combine)"
+    }
+  },
+  "70": {
+    "inputs": {
+      "start": 0,
+      "end": 0.5,
+      "conditioning": [
+        "71",
+        0
+      ]
+    },
+    "class_type": "ConditioningSetTimestepRange",
+    "_meta": {
+      "title": "ConditioningSetTimestepRange"
+    }
+  },
+  "71": {
+    "inputs": {
+      "text": "__NEGATIVE_PROMPT__",
+      "clip": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative Prompt)"
+    }
+  },
+  "135": {
+    "inputs": {
+      "width": __WIDTH__,
+      "height": __HEIGHT__,
+      "batch_size": __BATCH_SIZE__
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    }
+  },
+  "231": {
+    "inputs": {
+      "samples": [
+        "271",
+        0
+      ],
+      "vae": [
+        "252",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "233": {
+    "inputs": {
+      "filename_prefix": "sd3",
+      "images": [
+        "231",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "252": {
+    "inputs": {
+      "ckpt_name": "__BASE_CHECKPOINT__"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "271": {
+    "inputs": {
+      "add_noise": true,
+      "noise_seed": __SEED__,
+      "cfg": __BASE_CFG__,
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "69",
+        0
+      ],
+      "latent_image": [
+        "135",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "sigmas",
+        0
+      ]
+    },
+    "class_type": "SamplerCustom"
+  },
+  "sampler": {
+    "class_type": "ODESamplerSelect",
+    "inputs": {
+      "solver": "bosh3",
+      "log_relative_tolerance": -2.5,
+      "log_absolute_tolerance": -3.5,
+      "max_steps": __STEPS_TOTAL__
+    }
+  },
+  "sigmas": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "scheduler": "sgm_uniform",
+      "steps": __STEPS_TOTAL__,
+      "denoise": 1.0,
+      "model": ["13", 0]
+    }
+  }
+}

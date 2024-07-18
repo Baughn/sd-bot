@@ -51,6 +51,7 @@ pub struct IrcConfig {
     pub port: u16,
     pub nick: String,
     pub channels: Vec<String>,
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -10,12 +10,14 @@ incremental = true
 [dependencies]
 anyhow = { version = "1.0.72", features = ["backtrace"] }
 async-stream = "0.3.5"
+base64 = "0.21.7"
 blake3 = "1.4.1"
 clap = { version = "4.3.19", features = ["derive"] }
 env_logger = "0.10.0"
 futures = "0.3.28"
 futures-time = "3.0.0"
-image = { version = "0.24.6", features = ["jpeg", "png", "webp-encoder", "webp"] }
+google-generative-ai-rs = { version = "0.3.2", features = ["beta"] }
+image = { version = "0.24.6", features = ["jpeg", "png"] }
 irc = "0.15.0"
 lazy_static = "1.4.0"
 log = "0.4.19"

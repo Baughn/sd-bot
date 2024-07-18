@@ -15,6 +15,7 @@ pub struct GPTPrompt {
     neg: String,
     aspect_ratio: String,
     model: String,
+    pub comment: String,
 }
 
 impl ToString for GPTPrompt {
@@ -36,6 +37,10 @@ impl GPTPromptGeneratorModule {
         Self { config }
     }
 
+    pub async fn gemini(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
+        unimplemented!()
+    }
+
     // TODO: Fix this duplication.
     pub async fn gpt3_5(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
         // Set up the OpenAI client.
@@ -43,7 +48,7 @@ impl GPTPromptGeneratorModule {
             .context("OPENAI_API_KEY not set. Please stick to real help subjects.")?;
         let client = openai_api_rs::v1::api::Client::new(key);
         // Ask GPT-3.5-turbo to complete the prompt.
-        let model = "gpt-4-1106-preview".to_string();
+        let model = "gpt-4o".to_string();
         let req = ChatCompletionRequest {
             model,
             messages: vec![
@@ -62,12 +67,12 @@ impl GPTPromptGeneratorModule {
             ],
             functions: None,
             function_call: None,
-            temperature: Some(1.2),
+            temperature: Some(1.0),
             top_p: None,
             n: None,
             stream: Some(false),
             stop: None,
-            max_tokens: Some(800),
+            max_tokens: Some(4096),
             presence_penalty: None,
             frequency_penalty: None,
             logit_bias: None,
@@ -77,9 +82,7 @@ impl GPTPromptGeneratorModule {
             std::time::Duration::from_secs(120),
             client.chat_completion(req),
         );
-        let result = result
-            .await
-            .context("While completing prompt")??;
+        let result = result.await.context("While completing prompt")??;
         log::info!("Generated (3.5) {} to {:?}", user_prompt, result);
         let result = result
             .choices
@@ -111,7 +114,7 @@ impl GPTPromptGeneratorModule {
             .context("OPENAI_API_KEY not set. Please use /prompt.")?;
         let client = openai_api_rs::v1::api::Client::new(key);
         // Ask GPT-4 to complete the prompt.
-        let model = "gpt-4-1106-preview".to_string();
+        let model = "gpt-4o".to_string();
         let req = ChatCompletionRequest {
             model: model.clone(),
             messages: vec![
@@ -130,7 +133,7 @@ impl GPTPromptGeneratorModule {
             ],
             functions: None,
             function_call: None,
-            temperature: Some(1.0),
+            temperature: Some(0.9),
             top_p: None,
             n: None,
             stream: Some(false),
@@ -174,7 +177,9 @@ impl GPTPromptGeneratorModule {
         // Parse the result into a GPTPrompt.
         // There's a pretty good chance GPT-4 will try to markdown-escape this with ```json,
         // so we'll strip that out if it's there.
-        let result = result.trim_start_matches("```json\n").trim_end_matches("```");
+        let result = result
+            .trim_start_matches("```json\n")
+            .trim_end_matches("```");
         // If it isn't valid, we'll bail with the whole completion in the error.
         let parsed = serde_json::from_str::<GPTPrompt>(&result)
             .with_context(|| format!("While parsing GPTPrompt from {:?}", result))?;

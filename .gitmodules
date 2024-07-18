@@ -1,3 +1,6 @@
 [submodule "Sytan-SDXL-ComfyUI"]
 	path = Sytan-SDXL-ComfyUI
 	url = https://github.com/SytanSD/Sytan-SDXL-ComfyUI.git
+[submodule "prompt-augmenter/superprompt-v1"]
+	path = prompt-augmenter/superprompt-v1
+	url = https://huggingface.co/roborovski/superprompt-v1

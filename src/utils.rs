@@ -100,8 +100,8 @@ pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Ve
         .context("failed to create temporary directory")?;
     info!("Uploading {} bytes in {} images", images.iter().map(|i| i.len()).sum::<usize>(), images.len());
     let temporaries = images.into_iter().enumerate().map(|(i, data)| {
-        // These should all be webps. We'll assume.
-        let filename = format!("{}.{}.webp", uuid, i);
+        // These should all be jpegs. We'll assume.
+        let filename = format!("{}.{}.jpeg", uuid, i);
         let path = tmp.path().join(&filename);
         std::fs::write(&path, data).context("failed to write temporary file")?;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).context("failed to chmod temporary file")?;
@@ -128,7 +128,7 @@ pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Ve
     for (_, path) in &temporaries {
         command.arg(path);
     }
-    command.arg(format!("{host}:{webdir}/{relative}/"));
+    command.arg(format!("localhost:{webdir}/{relative}/"));
     debug!("Running {:?}", &command);
     let status = command.status().await.context("failed to run scp")?;
     if !status.success() {
@@ -225,19 +225,19 @@ pub fn hash(text: &str) -> String {
     hash.to_string()
 }
 
-/// Parses a serialized iamge (JPG, PNG, etc) and converts it to a WebP.
-pub fn convert_to_webp(image: Vec<u8>) -> Result<Vec<u8>> {
+/// Parses a serialized image (JPG, PNG, etc) and converts it to a JPEG.
+pub fn convert_to_jpeg(image: Vec<u8>) -> Result<Vec<u8>> {
     let image = image::load_from_memory(&image).context("failed to parse image")?;
     let mut output = Vec::new();
     image
-        .write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::WebP)
+        .write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::Jpeg(90))
         .context("failed to encode WebP")?;
     Ok(output)
 }
 
 pub fn get_individual_url(url: &str, replacement: &str) -> Result<String> {
     // This should end in ".0.EXT", and we'll replace the 0.
-    // Might be jpg, might be png, might be webp.
+    // Might be jpg, might be png, might be jpeg.
     if let Some((prefix, suffix)) = url.rsplit_once(".0.") {
         let new_url = format!("{}.{}.{}", prefix, replacement, suffix);
         debug!("Replacing {} with {}", url, new_url);
@@ -268,8 +268,8 @@ mod tests {
             "https://example.com/123.456.png"
         );
         assert_eq!(
-            get_individual_url("https://example.com/123.0.webp", "456").unwrap(),
-            "https://example.com/123.456.webp"
+            get_individual_url("https://example.com/123.0.jpeg", "456").unwrap(),
+            "https://example.com/123.456.jpeg"
         );
     }
 

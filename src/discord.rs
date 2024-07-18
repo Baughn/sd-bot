@@ -7,9 +7,10 @@ use serenity::{
     model::prelude::{
         application_command::{ApplicationCommandInteraction, CommandDataOptionValue},
         command::{Command, CommandOptionType},
-        component::{ButtonStyle, ActionRowComponent},
+        component::{ActionRowComponent, ButtonStyle},
         message_component::MessageComponentInteraction,
-        *, modal::ModalSubmitInteraction,
+        modal::ModalSubmitInteraction,
+        *,
     },
     prelude::*,
 };
@@ -83,6 +84,8 @@ impl Handler {
                         raw: prompt.to_string(),
                         dream: Some(prompt.to_string()),
                         source: generator::Source::Discord,
+                        comment: None,
+                        private: command.guild_id.is_none(),
                     }
                 } else {
                     bail!("Expected parameter to be a string");
@@ -154,6 +157,8 @@ impl Handler {
                     raw,
                     dream: None,
                     source: generator::Source::Discord,
+                    comment: None,
+                    private: command.guild_id.is_none(),
                 }
             }
             x => bail!("Unknown command: {}", x),
@@ -178,7 +183,12 @@ impl Handler {
         mention_user: Mention,
         is_private: bool,
     ) -> Result<()> {
-        let mut stream = Box::pin(self.context.image_generator.generate(request.clone(), is_private).await);
+        let mut stream = Box::pin(
+            self.context
+                .image_generator
+                .generate(request.clone(), is_private)
+                .await,
+        );
         // When generating, we first create an interaction response in which we
         // display event data such as queue #s.
         // Once the generation is complete, we send a followup message with the
@@ -207,11 +217,20 @@ impl Handler {
             trace!("Event: {:?}", event);
             match event {
                 GenerationEvent::GPTCompleted(c) => {
-                    status_text[0] = format!(
-                        "Dreaming about `{}`\nBased on `{}`",
-                        c.raw,
-                        c.dream.unwrap()
-                    );
+                    if let Some(dream) = c.dream {
+                        status_text[0] = format!(
+                            "Dreaming about `{}`\nBased on `{}`\n\n{}\n",
+                            c.raw,
+                            dream,
+                            c.comment.unwrap_or_default(),
+                        );
+                    } else {
+                        status_text[0] = format!(
+                            "Dreaming about `{}`\n\n{}\n",
+                            c.raw,
+                            c.comment.unwrap_or_default(),
+                        );
+                    }
                     statusbox
                         .edit(&ctx.http, |message| {
                             message.content(&status_text.join("\n"))
@@ -289,13 +308,13 @@ impl Handler {
                     let mut text = vec![
                         format!("Dreams of `{}` | For {}", c.base.base.raw, mention_user),
                         format!(
-                            "Seed {} | {}x{} | {} steps | Aesthetic {} | Guidance {}",
+                            "Seed {} | {}x{} | {} steps | Guidance {}\n{}\n",
                             c.base.seed,
                             c.base.width,
                             c.base.height,
                             c.base.steps,
-                            c.base.aesthetic_scale,
-                            c.base.guidance_scale
+                            c.base.guidance_scale,
+                            c.base.base.comment.unwrap_or_default(),
                         ),
                     ];
                     if let Some(dream) = c.base.base.dream {
@@ -360,8 +379,14 @@ impl Handler {
             "edit.submit" => {
                 debug!("Received edit submission");
                 // Grab the prompt from the input text.
-                let prompt = interaction.data.components.first().context("Expected a component")?
-                    .components.first().context("Expected a component")?;
+                let prompt = interaction
+                    .data
+                    .components
+                    .first()
+                    .context("Expected a component")?
+                    .components
+                    .first()
+                    .context("Expected a component")?;
                 match prompt {
                     ActionRowComponent::InputText(text) => {
                         let text = text.value.clone();
@@ -371,6 +396,8 @@ impl Handler {
                             raw: text,
                             dream: None,
                             source: generator::Source::Discord,
+                            comment: None,
+                            private: is_private,
                         };
                         let statusbox = interaction
                             .create_followup_message(&ctx.http, |message| {
@@ -378,8 +405,14 @@ impl Handler {
                             })
                             .await
                             .context("Creating initial statusbox")?;
-                        self.do_generate(ctx, statusbox, request, interaction.user.mention(), is_private)
-                            .await?;
+                        self.do_generate(
+                            ctx,
+                            statusbox,
+                            request,
+                            interaction.user.mention(),
+                            is_private,
+                        )
+                        .await?;
                     }
                     _ => {
                         bail!("Expected an input component");
@@ -524,10 +557,7 @@ impl Handler {
                     let (width, height) = utils::simplify_fraction(request.width, request.height);
                     let mut raw = format!(
                         "{} --ar {}:{} --model {}",
-                        request.linguistic_prompt,
-                        width,
-                        height,
-                        request.model_name
+                        request.linguistic_prompt, width, height, request.model_name
                     );
                     if request.linguistic_prompt != request.supporting_prompt {
                         raw.push_str(&format!(" --style {}", request.supporting_prompt));
@@ -571,8 +601,14 @@ impl Handler {
                             .await
                             .context("Creating initial statusbox")?;
                         let is_private = component.guild_id.is_none();
-                        self.do_generate(ctx, statusbox, request.base, component.user.mention(), is_private)
-                            .await?;
+                        self.do_generate(
+                            ctx,
+                            statusbox,
+                            request.base,
+                            component.user.mention(),
+                            is_private,
+                        )
+                        .await?;
                     }
                 } else {
                     bail!("No generation parameters found for this batch.");
@@ -668,7 +704,7 @@ impl EventHandler for Handler {
             Interaction::MessageComponent(component) => {
                 info!("Received component interaction: {:?}", component);
                 if let Err(e) = self.handle_component(&ctx, &component).await {
-                    let _ = component.defer(&ctx.http).await;  // Deferring is optional.
+                    let _ = component.defer(&ctx.http).await; // Deferring is optional.
                     error!("Error handling component: {:?}", e);
                     let e = format!("{:#}", e);
                     let e = utils::segment_lines(&e, 1800)[0];

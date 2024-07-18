@@ -49,6 +49,9 @@ pub struct UserRequest {
     pub dream: Option<String>,
     pub raw: String,
     pub source: Source,
+    #[serde(default)]
+    pub private: bool,
+    pub comment: Option<String>,  // Sometimes filled in by GPT-4.
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -86,6 +89,8 @@ impl Default for ParsedRequest {
                 dream: None,
                 raw: "".to_string(),
                 source: Source::Unknown,
+                comment: None,
+                private: true,
             },
             model_name: "default".to_string(),
             linguistic_prompt: "".to_string(),
@@ -95,7 +100,7 @@ impl Default for ParsedRequest {
             use_neg_default: true,
             guidance_scale: 6.0,
             aesthetic_scale: 20.0,
-            steps: 40,
+            steps: 28,
             count: 2,
             seed: 0,
             width: 1024,
@@ -131,24 +136,25 @@ struct ComfyUIRequest {
 
 
 impl ParsedRequest {
-    pub fn parse_aspect_ratio(value: &str) -> Result<(u32, u32)> {
+    pub fn parse_aspect_ratio(stride: u32, target: u32, value: &str) -> Result<(u32, u32)> {
         let mut parts = value.splitn(2, ':');
         let ar_x = parts.next().context("AR must be in the form W:H")?;
         let ar_y = parts.next().context("AR must be in the form W:H")?;
         let ar_x: f32 = ar_x.parse().context("AR must be in the form W:H")?;
         let ar_y: f32 = ar_y.parse().context("AR must be in the form W:H")?;
         // Width and height are derived from AR.
-        // The total number of pixels is fixed at 1 megapixel.
+        // The total number of pixels is fixed at 1 megapixel for most models.
+        let target = target as f32;
         let ar: f32 = ar_x / ar_y;
-        let mut width = (1024.0 * ar.sqrt()).round() as u32;
-        let mut height = (1024.0 / ar.sqrt()).round() as u32;
+        let mut width = (target * ar.sqrt()).round() as u32;
+        let mut height = (target / ar.sqrt()).round() as u32;
         // Make sure aspect ratio is less than 1:4.
         if !(0.25..=4.0).contains(&ar) {
             bail!("Aspect ratio must be between 1:4 and 4:1");
         }
-        // Shrink dimensions so that they're multiples of 64.
-        width -= width % 64;
-        height -= height % 64;
+        // Shrink dimensions so that they're multiples of stride.
+        width -= width % stride;
+        height -= height % stride;
 
         Ok((width, height))
     }
@@ -167,6 +173,7 @@ impl ParsedRequest {
         let mut linguistic_prompt = vec![];
         let mut supporting_prompt = vec![];
         let mut negative_prompt = vec![];
+        let mut override_wh = None;
         
         // Parsing state.
         let mut last_option = None;
@@ -177,6 +184,7 @@ impl ParsedRequest {
         // For a final pre-processing step, turn — (em dash) into -- (double dash).
         // Because Apple.
         let raw = request.raw.replace("—", "--");
+        let mut ar = "1:1";
 
         for token in raw.split_whitespace() {
             let mut add_to_prompt = |token| {
@@ -232,8 +240,24 @@ impl ParsedRequest {
                     "steps" => parsed.steps = value.parse().context("Steps must be a number")?,
                     "count" | "c" => parsed.count = value.parse().context("Count must be a number")?,
                     "seed" => parsed.seed = value.parse().context("Seed must be a number")?,
+                    "w" => {
+                        let w = value.parse().context("Width must be an integer")?;
+                        if let Some((_, h)) = override_wh {
+                            override_wh = Some((w, h));
+                        } else {
+                            override_wh = Some((w, parsed.height));
+                        }
+                    },
+                    "h" => {
+                        let h = value.parse().context("Height must be an integer")?;
+                        if let Some((w, _)) = override_wh {
+                            override_wh = Some((w, h));
+                        } else {
+                            override_wh = Some((parsed.width, h));
+                        }
+                    },
                     "ar" => {
-                        (parsed.width, parsed.height) = Self::parse_aspect_ratio(value)?;
+                        ar = value;
                     },
                     x => bail!("Unknown option: {}", x),
                 }
@@ -265,11 +289,22 @@ impl ParsedRequest {
         while let Some(alias) = config.aliases.get(&parsed.model_name) {
             parsed.model_name = alias.clone();
         }
+
+        if let Some((w, h)) = override_wh {
+            (parsed.width, parsed.height) = (w, h);
+        } else {
+            // Parse the aspect ratio.
+            // This has to be done last, because it depends on the selected model.
+            if parsed.model_name.contains("cascade") {
+                (parsed.width, parsed.height) = ParsedRequest::parse_aspect_ratio(128, 1280, ar)?;
+            } else {
+                (parsed.width, parsed.height) = ParsedRequest::parse_aspect_ratio(64, 1024, ar)?;
+            }
+        }
+
+        // Final sanity checks.
         if linguistic_prompt.is_empty() {
             bail!("Linguistic prompt is required");
-        }
-        if supporting_prompt.is_empty() {
-            supporting_prompt = linguistic_prompt.clone();
         }
         if !(1.0..=80.0).contains(&parsed.guidance_scale) {
             bail!("Scale must be between 1 and 80");
@@ -283,6 +318,9 @@ impl ParsedRequest {
         if parsed.count > 16 {
             bail!("Count must be 16 or less");
         }
+        if parsed.max_batch_size() < 1 || (parsed.width * parsed.height > 1600 * 1600) {
+            bail!("Resolution is too high");
+        }
 
         // Generate the final command.
         let parsed = ParsedRequest {
@@ -295,11 +333,11 @@ impl ParsedRequest {
         Ok(parsed)
     }
 
-    /// In general we have a limit of 4 Megapixels per request.
+    /// In general we have a limit of 12 Megapixels per request.
     fn max_batch_size(&self) -> u32 {
-        let max_pixels = (4 * 1024 * 1024) as f32;
+        let max_pixels = (12 * 1024 * 1024) as f32;
         let pixels_per_image = (self.width * self.height) as f32;
-        std::cmp::max(1, (max_pixels / pixels_per_image) as u32)
+        (max_pixels / pixels_per_image) as u32
     }
 
     /// Builds a query string for the backend.
@@ -318,12 +356,12 @@ impl ParsedRequest {
         let workflow = std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
         // Replace the placeholders.
         let linguistic_prompt = if self.use_pos_default {
-            self.linguistic_prompt.clone() + ", " + &model_config.default_positive
+            model_config.default_positive.clone() + ", " + &self.linguistic_prompt
         } else {
             self.linguistic_prompt.clone()
         };
         let supporting_prompt = if self.use_pos_default {
-            self.supporting_prompt.clone() + ", " + &model_config.default_positive
+            model_config.default_positive.clone() + ", " + &self.supporting_prompt
         } else {
             self.supporting_prompt.clone()
         };
@@ -349,6 +387,8 @@ impl ParsedRequest {
             result
         }
 
+        let combined_prompt = format!("{}. Style: {}", linguistic_prompt, supporting_prompt);
+
         let workflow = workflow
             .replace("__REFINER_CHECKPOINT__", &json_encode_string(model_config.refiner.as_ref().unwrap_or(&model_config.baseline)))
             .replace("__BASE_CHECKPOINT__", &json_encode_string(&model_config.baseline))
@@ -356,6 +396,7 @@ impl ParsedRequest {
             .replace("__NEGATIVE_PROMPT__", &json_encode_string(&negative_prompt))
             .replace("__PROMPT_A__", &json_encode_string(&linguistic_prompt))
             .replace("__PROMPT_B__", &json_encode_string(&supporting_prompt))
+            .replace("__COMBINED_PROMPT__", &json_encode_string(&combined_prompt))
             .replace("__STEPS_TOTAL__", &self.steps.to_string())
             .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
             .replace("__WIDTH__", &self.width.to_string())
@@ -520,7 +561,7 @@ impl ImageGeneratorModule {
                 .await
                 .context("failed to download image")?
                 .bytes().await.context("failed to read image")?;
-            final_images.push(utils::convert_to_webp(image.into()).context("failed to convert image")?);
+            final_images.push(utils::convert_to_jpeg(image.into()).context("failed to convert image")?);
         }
 
         Ok(final_images)
@@ -652,8 +693,18 @@ impl ImageGeneratorModule {
             if let Some(ref dream) = request.dream {
                 // This is a dream request. We need to generate a prompt for it.
                 debug!("Generating prompt for {:?}", request);
-                request.raw = self.0.read().await.prompt_generator.generate(&request.user, dream).await?.to_string();
+                let raw = self.0.read().await.prompt_generator.generate(&request.user, dream).await?;
+                request.raw = raw.to_string();
+                request.comment = Some(raw.comment);
                 yield GenerationEvent::GPTCompleted(request.clone());
+            } else {
+                // This is an explicit request. Generate some fun commentary, but only in channels.
+                if !request.private {
+                    let comment = self.0.read().await.prompt_generator.gpt3_5("Here's an image generation prompt; please provide a snarky comment about the intended image. (But not the style of prompting. That's meant to look weird.",
+                        &request.raw).await?;
+                    request.comment = Some(comment);
+                    yield GenerationEvent::GPTCompleted(request.clone());
+                }
             }
 
             // TODO: Snapshot the config here, keep it for the scope of the request.

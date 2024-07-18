@@ -1,0 +1,40 @@
+{
+  "16": {
+    "inputs": {
+      "filename_prefix": "segmoe",
+      "images": [
+        "15:1",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "15:0": {
+    "inputs": {
+      "config_or_path": "__BASE_CHECKPOINT__"
+    },
+    "class_type": "SMoE_ModelLoader_Zho",
+    "_meta": {
+      "title": "🎩SegMoE Model Loader"
+    }
+  },
+  "15:1": {
+    "inputs": {
+      "positive": "__COMBINED_PROMPT__",
+      "negative": "__NEGATIVE_PROMPT__",
+      "steps": __STEPS_TOTAL__,
+      "guidance_scale": __BASE_CFG__,
+      "width": __WIDTH__,
+      "height": __HEIGHT__,
+      "seed": __SEED__,
+      "pipe": [
+        "15:0",
+        0
+      ]
+    },
+    "class_type": "SMoE_Generation_Zho",
+    "_meta": {
+      "title": "🎩SegMoE Generation"
+    }
+  }
+}

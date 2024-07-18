@@ -4,7 +4,7 @@ command_prefix = ""
 client_id = "GANBot"
 host = "localhost"
 port = 8188
-webhost = "saya.brage.info"
+webhost = "brage.info"
 webdir = "web"
 webdir_internal = "GAN/ganbot2"
 
@@ -16,6 +16,7 @@ server = "irc.rizon.net"
 port = 6697
 nick = "GANBot"
 channels = ["#nanoha", "#nanobot", "#dess"]
+password = "$IRC_PASSWORD"
 
 [[irc]]
 server = "irc.libera.chat"
@@ -24,16 +25,110 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "animaginexl"
+default = "sd3"
 sdxl = "sdxl_1.0"
+"sd3" = "sd3-medium"
 "Cartoon" = "ponyxl"
 "Painterly" = "zavyyumexl"
 "Aesthetic" = "duchaitenxl"
-"Realistic" = "Dreamshaper"
+"Realistic" = "realvis"
 "Drawings" = "breakdomainxl"
 "Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
-"AnimeXL" = "animaginexl"
+"AnimeXL" = "animavividxl"
+"honkai" = "animaginexl"
+"cascade" = "cascade-baseline"
+
+[models.auraflow]
+baseline = "aura_flow_0.1.safetensors"
+description = "AuraFlow 0.1. Use English and superlatives."
+workflow = "workflow-auraflow.json.tmpl"
+default_positive = "realistic textures, ultra-high definition, very dark background, photorealistic, highly detailed, natural lighting, sharp focus, hyperrealism"
+default_negative = ""
+
+[models.helloworld]
+baseline = "HelloWorld_7.0.safetensors"
+description = "SD2 photorealistic model. Use English."
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+default_positive = ""
+default_negative = "bad hand, bad anatomy, worst quality, ai generated images, low quality, average quality"
+
+[models.sd3-medium]
+baseline = "sd3_medium.safetensors"
+description = "Stable Diffusion 3, medium baseline. Use english!"
+workflow = "workflow-sd3.json.tmpl"
+default_positive = ""
+default_negative = "pornhub, boobs, stepsister, vagina, clit, penis, dick, cock, bdsm, bad quality, poor quality, disfigured, jpg, toy, bad anatomy, missing limbs, missing fingers, 3d, cgi"
+
+[models.zavyfantasiaxl]
+baseline = "zavyfantasiaxlPDXL_v10.safetensors"
+description = "ZavyFantasia XL. Use tags."
+workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+default_positive = "rating_safe, (score_9,score_8_up,score_7_up:0.5)"
+default_negative = "score_4,score_5,score_6,source_pony, malformed, deformed, worst quality, simple background, bad hands, bad feet, watermark, cg, 3d"
+
+[models.animapencilxl]
+description = "AnimaPencil XL. Use tags."
+workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
+baseline = "animaPencilXL_v310.safetensors"
+default_positive = ""
+default_negative = "(worst quality:1.3), low quality, lowres, messy, abstract, ugly, disfigured, bad anatomy, draft, deformed hands, fused fingers, signature, text, multi views"
+
+[models.realvis]
+description = "RealVisXL 4.0. Use English."
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+baseline = "realvisxlV40_v40Bakedvae.safetensors"
+default_positive = ""
+default_negative = "(worst quality, low quality, illustration, 3d, 2d, painting, cartoons, sketch:1.1)"
+
+[models.pixelart]
+description = "Pixelart anime model. Use tags, and 16/32/16-bit."
+workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+baseline = "pixelArtDiffusionXL_spriteShaper.safetensors"
+default_positive = "pixel art"
+default_negative = "bad quality, bad anatomy, worst quality, low quality, low resolution, extra fingers, blur, blurry, ugly, wrong proportions, watermark, image artifacts, lowres, jpeg artifacts, deformed, noisy image, deformation, corrupt image"
+
+[models.proteus]
+description = "Proteus 0.4beta."
+workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
+baseline = "proteus_v04beta.safetensors"
+default_positive = "(best quality, HD, ~*~aesthetic~*~:0.6)"
+default_negative = "low quality, worst quality, lowres"
+
+[models.segmoe]
+description = "SegMoE 2x1. Use English."
+workflow = "workflow-segmoe.json.tmpl"
+baseline = "segmind/SegMoE-2x1-v0"
+default_positive = "masterpiece"
+default_negative = "low quality, worst quality, lowres"
+
+[models.countersushi-anime]
+description = "Countersushi v0.3; a Stable Cascade finetune. Use english & tags."
+workflow = "workflow-cascade.json.tmpl"
+baseline = "countersushiStable_countersushiV03.safetensors"
+default_positive = ""
+default_negative = "bad coloring, (bad anatomy, deformed, blurred, artifacts, lowres, simple background, b&w, realism:1.15)"
+
+[models.countersushi]
+description = "Countersushi v0.3; a Stable Cascade finetune. Use english & tags."
+workflow = "workflow-cascade.json.tmpl"
+baseline = "countersushiStable_countersushiV03.safetensors"
+default_positive = ""
+default_negative = "(bad anatomy, deformed, blurred, artifacts, lowres, simple background:1.15)"
+
+[models.cascade-baseline]
+description = "Stable Cascade 1.0. Use English."
+workflow = "workflow-cascade.json.tmpl"
+baseline = "cascade-baseline-c_bf16.safetensors"
+default_positive = ""
+default_negative = ""
+
+[models.confettixl]
+description = "AutismMix Confetti XL. Tags, probably?"
+workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
+baseline = "autismmixSDXL_autismmixConfetti.safetensors"
+default_positive = "(score_9, score_8, score_7_up:0.6)"
+default_negative = "3d"
 
 [models.thinkdiffusionxl]
 description = "ThinkDiffusion XL. Use English."
@@ -78,6 +173,13 @@ workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
 baseline = "animagineXLV3_v30.safetensors"
 default_positive = ""
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
+
+[models.animavividxl]
+description = "AnimaVivid XL, a merge model based on AnimagineXL and Blue Pencil. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
+workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+baseline = "animavivid_v10.safetensors"
+default_positive = ""
+default_negative = "(worst quality, low quality:1.6), simple"
 
 [models.yamerxl]
 description = "Yamer's anime. Use tags."
