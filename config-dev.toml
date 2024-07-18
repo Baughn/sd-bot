@@ -26,37 +26,37 @@ default = "animavividxl"
 [models.animavividxl]
 description = "AnimaVivid XL, a merge model based on AnimagineXL and Blue Pencil. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
 workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
-baseline = "animavivid_v10.safetensors"
+baseline = "xl/animavivid_v10.safetensors"
 default_positive = ""
 default_negative = "(worst quality, low quality:1.6), simple"
 
 [models."sdxl_0.9"]
 description = "The v0.9 research preview of SDXL. This model is incredibly flexible."
 workflow = "workflow-sdxl.json.tmpl"
-baseline = "sd_xl_base_0.9.safetensors"
-refiner = "sd_xl_refiner_0.9.safetensors"
+baseline = "xl/sd_xl_base_0.9.safetensors"
+refiner = "xl/sd_xl_refiner_0.9.safetensors"
 default_positive = ""
 default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast, monochrome"
 
 [models.waifuxl]
 description = "Research preview of WaifuXL. This model is experimental and may produce strange results."
 workflow = "workflow-sdxl.json.tmpl"
-baseline = "wdxl-aesthetic-0.9.safetensors"
-refiner = "sd_xl_refiner_0.9.safetensors"
+baseline = "xl/wdxl-aesthetic-0.9.safetensors"
+refiner = "xl/sd_xl_refiner_0.9.safetensors"
 default_positive = ""
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models."MeinaMix_v11"]
 description = "MeinaMix v11. Good for aesthetics, bad for fanart. Use Danbooru tags."
 workflow = "workflow-sd15-baseonly.json.tmpl"
-baseline = "MeinaMix_v11.safetensors"
+baseline = "1.5/MeinaMix_v11.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
 
 [models."cetusMix_whalefall_v2"]
 description = "cetusMix whalefall v2. Good for fanart and dynamic scenes. Use Danbooru tags."
 workflow = "workflow-sd15-vae.json.tmpl"
-baseline = "cetusMix_whalefall_v2.safetensors"
+baseline = "1.5/cetusMix_whalefall_v2.safetensors"
 vae = "vae-ft-mse-840000-ema-pruned.vae.safetensors"
 default_positive = ""
 default_negative = "extra fingers,fewer fingers,(low quality, worst quality:1.4), (bad anatomy), (inaccurate limb:1.2), bad composition, inaccurate eyes, extra digit,fewer digits,(extra arms:1.2)"

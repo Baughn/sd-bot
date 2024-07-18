@@ -122,13 +122,11 @@ pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Ve
     let mut command = tokio::process::Command::new("scp");
     command
         .env_remove("LD_PRELOAD") // SSH doesn't like tcmalloc.
-        .arg("-F")
-        .arg("None") // Don't read ~/.ssh/config.
         .arg("-p"); // Preserve access bits.
     for (_, path) in &temporaries {
         command.arg(path);
     }
-    command.arg(format!("localhost:{webdir}/{relative}/"));
+    command.arg(format!("{host}:{webdir}/{relative}/"));
     debug!("Running {:?}", &command);
     let status = command.status().await.context("failed to run scp")?;
     if !status.success() {
