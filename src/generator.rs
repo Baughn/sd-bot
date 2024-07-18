@@ -475,10 +475,38 @@ impl ImageGeneratorModule {
             number: u32,
         }
 
+        #[derive(Deserialize)]
+        struct ComfyUIError {
+            error: ComfyUIErrorDetails,
+        }
+
+        #[derive(Deserialize)]
+        struct ComfyUIErrorDetails {
+            message: String,
+            details: String,
+        }
+
         let response = request.send().await.context("failed to send request")?;
         let text = response.text().await.context("failed to read response")?;
         trace!("Response: {}", text);
-        let parsed = serde_json::from_str::<ComfyUIResponse>(&text).context("failed to parse response")?;
+        let parsed = match serde_json::from_str::<ComfyUIResponse>(&text) {
+            Result::Ok(parsed) => parsed,
+            Err(e) => {
+                if let Result::Ok(parsed) = serde_json::from_str::<ComfyUIError>(&text) {
+                    let msg = if parsed.error.details.is_empty() {
+                        parsed.error.message
+                    } else {
+                        format!("{}: {}", parsed.error.message, parsed.error.details)
+                    };
+                    warn!("Backend error: {}, {}", msg, text);
+                    bail!("backend error: {}", msg);
+                } else {
+                    warn!("Failed to parse response: {}", text);
+                    bail!("failed to parse backend response: {}", e);
+                }
+            }
+        };
+
         let prompt_id = parsed.prompt_id;
         debug!("Got prompt ID {}", prompt_id);
         // Now, we need to poll the history endpoint until it's done.
