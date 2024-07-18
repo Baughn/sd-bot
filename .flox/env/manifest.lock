@@ -1,0 +1,249 @@
+{
+  "lockfile-version": 0,
+  "manifest": {
+    "hook": {},
+    "install": {
+      "cargo": {
+        "pkg-path": "cargo"
+      },
+      "mold": {
+        "pkg-path": "mold"
+      },
+      "openssh": {
+        "pkg-path": "openssh"
+      },
+      "openssl": {
+        "pkg-path": "openssl"
+      },
+      "pkg-config": {
+        "pkg-path": "pkg-config"
+      },
+      "rustc": {
+        "pkg-path": "rustc"
+      }
+    },
+    "options": {
+      "systems": [
+        "x86_64-linux"
+      ]
+    },
+    "profile": {},
+    "registry": {
+      "defaults": {
+        "subtrees": null
+      },
+      "inputs": {
+        "nixpkgs": {
+          "from": {
+            "owner": "NixOS",
+            "ref": "release-23.11",
+            "repo": "nixpkgs",
+            "type": "github"
+          },
+          "subtrees": [
+            "legacyPackages"
+          ]
+        }
+      },
+      "priority": [
+        "nixpkgs"
+      ]
+    },
+    "vars": {}
+  },
+  "packages": {
+    "x86_64-linux": {
+      "cargo": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "cargo"
+        ],
+        "info": {
+          "broken": false,
+          "description": "Downloads your Rust project's dependencies and builds your project",
+          "license": null,
+          "pname": "cargo",
+          "unfree": false,
+          "version": "1.73.0"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1717428950,
+            "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+            "type": "github"
+          },
+          "fingerprint": "be3735e473216d47b786d80521592c313517b6a43d0da6043acd396f5d17a541",
+          "url": "github:NixOS/nixpkgs/4fad892a8f64635a55423e4acfefeefb6caf4d0d"
+        },
+        "priority": 5
+      },
+      "mold": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "mold"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A faster drop-in replacement for existing Unix linkers (unwrapped)",
+          "license": "MIT",
+          "pname": "mold",
+          "unfree": false,
+          "version": "2.3.3"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1717428950,
+            "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+            "type": "github"
+          },
+          "fingerprint": "be3735e473216d47b786d80521592c313517b6a43d0da6043acd396f5d17a541",
+          "url": "github:NixOS/nixpkgs/4fad892a8f64635a55423e4acfefeefb6caf4d0d"
+        },
+        "priority": 5
+      },
+      "openssh": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "openssh"
+        ],
+        "info": {
+          "broken": false,
+          "description": "An implementation of the SSH protocol",
+          "license": "BSD-2-Clause",
+          "pname": "openssh",
+          "unfree": false,
+          "version": "9.6p1"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1717428950,
+            "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+            "type": "github"
+          },
+          "fingerprint": "be3735e473216d47b786d80521592c313517b6a43d0da6043acd396f5d17a541",
+          "url": "github:NixOS/nixpkgs/4fad892a8f64635a55423e4acfefeefb6caf4d0d"
+        },
+        "priority": 5
+      },
+      "openssl": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "openssl"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A cryptographic library that implements the SSL and TLS protocols",
+          "license": "Apache-2.0",
+          "pname": "openssl",
+          "unfree": false,
+          "version": "3.0.13"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1717428950,
+            "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+            "type": "github"
+          },
+          "fingerprint": "be3735e473216d47b786d80521592c313517b6a43d0da6043acd396f5d17a541",
+          "url": "github:NixOS/nixpkgs/4fad892a8f64635a55423e4acfefeefb6caf4d0d"
+        },
+        "priority": 5
+      },
+      "pkg-config": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "pkg-config"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A tool that allows packages to find out information about other packages (wrapper script)",
+          "license": "GPL-2.0-or-later",
+          "pname": "pkg-config-wrapper",
+          "unfree": false,
+          "version": "0.29.2"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1717428950,
+            "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+            "type": "github"
+          },
+          "fingerprint": "be3735e473216d47b786d80521592c313517b6a43d0da6043acd396f5d17a541",
+          "url": "github:NixOS/nixpkgs/4fad892a8f64635a55423e4acfefeefb6caf4d0d"
+        },
+        "priority": 5
+      },
+      "rustc": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "rustc"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A safe, concurrent, practical language",
+          "license": null,
+          "pname": "rustc",
+          "unfree": false,
+          "version": "1.73.0"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1717428950,
+            "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+            "type": "github"
+          },
+          "fingerprint": "be3735e473216d47b786d80521592c313517b6a43d0da6043acd396f5d17a541",
+          "url": "github:NixOS/nixpkgs/4fad892a8f64635a55423e4acfefeefb6caf4d0d"
+        },
+        "priority": 5
+      }
+    }
+  },
+  "registry": {
+    "defaults": {
+      "subtrees": null
+    },
+    "inputs": {
+      "nixpkgs": {
+        "from": {
+          "lastModified": 1717428950,
+          "narHash": "sha256-Pr3lhu2No1GHJarhjt+Jsfxye1wNLoY12E44p0b3VO0=",
+          "owner": "NixOS",
+          "repo": "nixpkgs",
+          "rev": "4fad892a8f64635a55423e4acfefeefb6caf4d0d",
+          "type": "github"
+        },
+        "subtrees": [
+          "legacyPackages"
+        ]
+      }
+    },
+    "priority": [
+      "nixpkgs"
+    ]
+  }
+}
