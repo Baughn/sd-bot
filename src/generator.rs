@@ -259,7 +259,7 @@ impl ParsedRequest {
         }
 
         // Do some final validation.
-        if config.models.contains_key(&parsed.model_name) {
+        if !config.models.contains_key(&parsed.model_name) {
             // That model doesn't exist, so... do a distance check.
             let mut best_similarity = 0.0;
             let mut best_model = None;
