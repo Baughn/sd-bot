@@ -388,7 +388,7 @@ lazy_static! {
 }
 
 async fn send(sender: &Sender, target: &str, text: &str) -> Result<()> {
-    let length_limit: usize = 480 - target.len();
+    let length_limit: usize = 460 - target.len();
     let lines = utils::segment_lines(text, length_limit);
     {
         // Make sure the inner mutex exists.
