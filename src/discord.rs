@@ -501,13 +501,27 @@ impl Handler {
                 // TODO: Actually do upscaling.
                 let _ = component.defer(&ctx.http).await;
                 debug!("Upscaling: {:?}", params);
-                // Anyway, this sums up as "Find the url in the message, and replace it with the requested invidual image."
-                let embed = component
-                    .message
-                    .embeds
-                    .first()
-                    .context("Expected an embed")?;
-                let url = embed.url.as_ref().context("Expected an embed with a url")?;
+                // Anyway, this sums up as "Find the url in the message, and replace it with the requested invidual image.
+                // However, Discord sometimes fails to install an embed. As a fallback we'll look for a textual URL.
+                let url = {
+                    // Is there an embed?
+                    if let Some(embed) = component.message.embeds.first() {
+                        if let Some(url) = embed.url.as_ref() {
+                            url.as_ref()
+                        } else {
+                            // Is there a URL in the content?
+                            let content = &component.message.content;
+                            if let Some(url) = utils::extract_url(content) {
+                                url
+                            } else {
+                                bail!("expected a URL in the message");
+                            }
+                        }
+                    } else {
+                        bail!("expected to find an embed or a URL in the message");
+                    }
+                };
+
                 let replacement = utils::get_individual_url(url, params)?;
                 debug!("Replacing {} with {}", url, replacement);
                 // Send a new message with the new url.

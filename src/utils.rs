@@ -233,6 +233,17 @@ pub fn convert_to_jpeg(image: Vec<u8>) -> Result<Vec<u8>> {
     Ok(output)
 }
 
+pub fn extract_url(text: &str) -> Option<&str> {
+    let mut url = None;
+    for word in text.split_whitespace() {
+        if word.starts_with("http://") || word.starts_with("https://") {
+            url = Some(word);
+            break;
+        }
+    }
+    url
+}
+
 pub fn get_individual_url(url: &str, replacement: &str) -> Result<String> {
     // This should end in ".0.EXT", and we'll replace the 0.
     // Might be jpg, might be png, might be jpeg.
@@ -269,6 +280,13 @@ mod tests {
             get_individual_url("https://example.com/123.0.jpeg", "456").unwrap(),
             "https://example.com/123.456.jpeg"
         );
+    }
+
+    #[test]
+    fn test_extract_url() {
+        assert_eq!(extract_url("hello world"), None);
+        assert_eq!(extract_url("http://example.com not ready"), Some("http://example.com"));
+        assert_eq!(extract_url("hello https://example.com world"), Some("https://example.com"));
     }
 
     #[test]

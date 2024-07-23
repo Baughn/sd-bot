@@ -1,7 +1,7 @@
 // These types describe the various stages of generation.
 // Each is logically a superset of the previous, and the final struct includes the output.
 
-use std::{fmt::Debug, sync::Arc, pin::Pin, f32::NEG_INFINITY};
+use std::{fmt::Debug, sync::Arc, pin::Pin};
 
 use anyhow::{Result, Context, bail, Ok};
 use async_stream::try_stream;
@@ -635,7 +635,7 @@ impl ImageGeneratorModule {
         if queue.is_empty() {
             return None;
         }
-        let mut highest_score = NEG_INFINITY;
+        let mut highest_score = f32::NEG_INFINITY;
         let mut highest_index = 0;
         for (i, (request, _)) in queue.iter().enumerate() {
             // TODO: This is a very simple scoring function.
