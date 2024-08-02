@@ -2,7 +2,7 @@ command_prefix = ""
 
 [backend]
 client_id = "GANBot"
-host = "localhost"
+host = "saya.local"
 port = 8188
 webhost = "brage.info"
 webdir = "web"
@@ -25,7 +25,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "sd3"
+default = "flux"
 sdxl = "sdxl_1.0"
 "sd3" = "sd3-medium"
 "Cartoon" = "ponyxl"
@@ -37,31 +37,37 @@ sdxl = "sdxl_1.0"
 "Anime_(Aesthetics)" = "MeinaMix_v11"
 "AnimeXL" = "animavividxl"
 "honkai" = "animaginexl"
-"cascade" = "cascade-baseline"
+
+[models.flux]
+baseline = "flux1-dev.sft"
+description = "Flux-dev-1. Use highly descriptive english."
+workflow = "workflow-flux.json.tmpl"
+default_positive = "Hyperdetailed anime."
+default_negative = ""
 
 [models.auraflow]
-baseline = "aura_flow_0.1.safetensors"
+baseline = "auraflow/aura_flow_0.1.safetensors"
 description = "AuraFlow 0.1. Use English and superlatives."
 workflow = "workflow-auraflow.json.tmpl"
 default_positive = "realistic textures, ultra-high definition, very dark background, photorealistic, highly detailed, natural lighting, sharp focus, hyperrealism"
 default_negative = ""
 
 [models.helloworld]
-baseline = "HelloWorld_7.0.safetensors"
+baseline = "xl/HelloWorld_7.0.safetensors"
 description = "SD2 photorealistic model. Use English."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
 default_positive = ""
 default_negative = "bad hand, bad anatomy, worst quality, ai generated images, low quality, average quality"
 
 [models.sd3-medium]
-baseline = "sd3_medium.safetensors"
+baseline = "sd3/sd3_medium.safetensors"
 description = "Stable Diffusion 3, medium baseline. Use english!"
 workflow = "workflow-sd3.json.tmpl"
 default_positive = ""
 default_negative = "pornhub, boobs, stepsister, vagina, clit, penis, dick, cock, bdsm, bad quality, poor quality, disfigured, jpg, toy, bad anatomy, missing limbs, missing fingers, 3d, cgi"
 
 [models.zavyfantasiaxl]
-baseline = "zavyfantasiaxlPDXL_v10.safetensors"
+baseline = "xl/zavyfantasiaxlPDXL_v10.safetensors"
 description = "ZavyFantasia XL. Use tags."
 workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
 default_positive = "rating_safe, (score_9,score_8_up,score_7_up:0.5)"
@@ -70,307 +76,257 @@ default_negative = "score_4,score_5,score_6,source_pony, malformed, deformed, wo
 [models.animapencilxl]
 description = "AnimaPencil XL. Use tags."
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
-baseline = "animaPencilXL_v310.safetensors"
+baseline = "xl/animaPencilXL_v310.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.3), low quality, lowres, messy, abstract, ugly, disfigured, bad anatomy, draft, deformed hands, fused fingers, signature, text, multi views"
 
 [models.realvis]
 description = "RealVisXL 4.0. Use English."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "realvisxlV40_v40Bakedvae.safetensors"
+baseline = "xl/realvisxlV40_v40Bakedvae.safetensors"
 default_positive = ""
 default_negative = "(worst quality, low quality, illustration, 3d, 2d, painting, cartoons, sketch:1.1)"
 
 [models.pixelart]
 description = "Pixelart anime model. Use tags, and 16/32/16-bit."
 workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
-baseline = "pixelArtDiffusionXL_spriteShaper.safetensors"
+baseline = "xl/pixelArtDiffusionXL_spriteShaper.safetensors"
 default_positive = "pixel art"
 default_negative = "bad quality, bad anatomy, worst quality, low quality, low resolution, extra fingers, blur, blurry, ugly, wrong proportions, watermark, image artifacts, lowres, jpeg artifacts, deformed, noisy image, deformation, corrupt image"
 
 [models.proteus]
 description = "Proteus 0.4beta."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "proteus_v04beta.safetensors"
+baseline = "xl/proteus_v04beta.safetensors"
 default_positive = "(best quality, HD, ~*~aesthetic~*~:0.6)"
 default_negative = "low quality, worst quality, lowres"
-
-[models.segmoe]
-description = "SegMoE 2x1. Use English."
-workflow = "workflow-segmoe.json.tmpl"
-baseline = "segmind/SegMoE-2x1-v0"
-default_positive = "masterpiece"
-default_negative = "low quality, worst quality, lowres"
-
-[models.countersushi-anime]
-description = "Countersushi v0.3; a Stable Cascade finetune. Use english & tags."
-workflow = "workflow-cascade.json.tmpl"
-baseline = "countersushiStable_countersushiV03.safetensors"
-default_positive = ""
-default_negative = "bad coloring, (bad anatomy, deformed, blurred, artifacts, lowres, simple background, b&w, realism:1.15)"
-
-[models.countersushi]
-description = "Countersushi v0.3; a Stable Cascade finetune. Use english & tags."
-workflow = "workflow-cascade.json.tmpl"
-baseline = "countersushiStable_countersushiV03.safetensors"
-default_positive = ""
-default_negative = "(bad anatomy, deformed, blurred, artifacts, lowres, simple background:1.15)"
-
-[models.cascade-baseline]
-description = "Stable Cascade 1.0. Use English."
-workflow = "workflow-cascade.json.tmpl"
-baseline = "cascade-baseline-c_bf16.safetensors"
-default_positive = ""
-default_negative = ""
 
 [models.confettixl]
 description = "AutismMix Confetti XL. Tags, probably?"
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
-baseline = "autismmixSDXL_autismmixConfetti.safetensors"
+baseline = "xl-pony/autismmixSDXL_autismmixConfetti.safetensors"
 default_positive = "(score_9, score_8, score_7_up:0.6)"
 default_negative = "3d"
 
 [models.thinkdiffusionxl]
 description = "ThinkDiffusion XL. Use English."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "thinkdiffusionxl_v10.safetensors"
+baseline = "xl/thinkdiffusionxl_v10.safetensors"
 default_positive = ""
 default_negative = "low quality, worst quality, lowres, monochrome, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark"
 
 [models.counterfeitxl]
 description = "Counterfeit XL. Pretty good for anime. Use english! And tags."
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
-baseline = "counterfeitxl_v25.safetensors"
-refiner = "animagineXLV3_v30.safetensors"
+baseline = "xl/counterfeitxl_v25.safetensors"
+refiner = "xl/animagineXLV3_v30.safetensors"
 default_positive = ""
 default_negative = "embedding:negativeXL_D, (low quality, worst quality:1.2), bad anatomy, fewer digits"
 
 [models.counterfeit]
 description = "Counterfeit v3, a great 1.5 model. Use english! And tags."
 workflow = "workflow-sd15-baseonly.json.tmpl"
-baseline = "CounterfeitV30_v30.safetensors"
+baseline = "1.5/CounterfeitV30_v30.safetensors"
 default_positive = ""
 default_negative = "embedding:easynegativev2"
 
 [models.ponyxl]
 description = "Pony Diffusion XL. Use [english], [tags]"
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
-baseline = "ponyDiffusionV6XL_v6.safetensors"
+baseline = "xl-pony/ponyDiffusionV6XL_v6.safetensors"
 default_positive = "(score_9, score_8_up, score_7_up, score_6_up:0.6)"
 default_negative = ""
 
 [models.animaginexl-realistic]
 description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release. This variant is tuned for realism."
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
-baseline = "animagineXLV3_v30.safetensors"
-refiner = "zavychromaxl_v31.safetensors"
+baseline = "xl/animagineXLV3_v30.safetensors"
+refiner = "xl/zavychromaxl_v31.safetensors"
 default_positive = "photorealistic, realistic, masterpiece, best quality, newest"
 default_negative = "rating:sensitive, nsfw, shiny, doll, render, drawing, anime, cartoon, 3d, cg, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models.animaginexl]
 description = "Linaqruf's AniMagine XL. Trained on Danbooru. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
 workflow = "workflow-sdxl-norefiner-upscale-clip2.json.tmpl"
-baseline = "animagineXLV3_v30.safetensors"
+baseline = "xl/animagineXLV3_v30.safetensors"
 default_positive = ""
 default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models.animavividxl]
 description = "AnimaVivid XL, a merge model based on AnimagineXL and Blue Pencil. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
 workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
-baseline = "animavivid_v10.safetensors"
+baseline = "xl/animavivid_v10.safetensors"
 default_positive = ""
 default_negative = "(worst quality, low quality:1.6), simple"
 
 [models.yamerxl]
 description = "Yamer's anime. Use tags."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "sdxlYamersAnimeUltra_ysAnimeV5.safetensors"
+baseline = "xl/sdxlYamersAnimeUltra_ysAnimeV5.safetensors"
 default_positive = "absurdres, vibrant, highly detailed"
 default_negative = "bad quality, bad anatomy, worst quality, low quality, low resolution, extra fingers, blur, blurry, ugly, wrong proportions, watermark, image artifacts, lowres, ugly, jpeg artifacts, deformed, noisy"
-
-[models.pixart2]
-description = "Use descriptive English."
-workflow = "workflow-pixart.json.tmpl"
-baseline = "PixArt-XL-2-1024-ControlNet.pth"
-default_positive = "High quality, trending, detailed, vibrant."
-default_negative = "Low quality, lowres, grainy, ugly, cropped, error"
-
-[models.pixart]
-description = "Extremely experimental. Use descriptive english."
-workflow = "workflow-pixart.json.tmpl"
-baseline = "PixArt-XL-2-1024-MS.pth"
-default_positive = "High quality, trending, looks great."
-default_negative = "Low quality, grainy, ugly, cropped, error"
 
 [models.kohakuxl]
 description = "Kohaku-XL Beta7. Very anime. Use tags."
 workflow = "workflow-sdxl-kohaku.json.tmpl"
-baseline = "kohakuXLBeta_beta7Pro.safetensors"
+baseline = "xl/kohakuXLBeta_beta7Pro.safetensors"
 default_positive = ""
 default_negative = "bad anatomy, disembodied limb, realistic, blurry, watercolor"
 
 [models.shugochara]
 description = "Highly broken SC model. Use for fun."
 workflow = "workflow-sdxl-norefiner-shugo.json.tmpl"
-baseline = "kohakuXLBeta_beta7Pro.safetensors"
+baseline = "xl/kohakuXLBeta_beta7Pro.safetensors"
 default_positive = ""
 default_negative = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.4), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, sketch, 3d, vector art"
 
 [models.zavychromaxl]
 description = "ZavyChroma XL. Realism & Magic. Use English."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "zavychromaxl_v31.safetensors"
+baseline = "xl/zavychromaxl_v31.safetensors"
 default_positive = ""
 default_negative = "(deformed, distorted, disfigured:1), (poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs:0.5), (disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation. tattoo, watermark, text, anime, illustration, sketch, 3d, vector art, cartoon, painting:0.3)"
 
 [models.dreamshaper8]
 description = "Dreamshaper 8; a modern SD 1.5 model. Good for realism, poor for complex scenes."
 workflow = "workflow-sd15-baseonly.json.tmpl"
-baseline = "dreamshaper_8.safetensors"
+baseline = "1.5/dreamshaper_8.safetensors"
 default_positive = ""
 default_negative = "embedding:BadDream, (embedding:UnrealisticDream:1.3)"
 
 [models.allysxl]
 description = "Allys Mix XL. Mixture of anime and realistic; use whatever."
 workflow = "workflow-sdxl-norefiner-unwrong-clip2.json.tmpl"
-baseline = "theAllysMixXSDXL_v10.safetensors"
+baseline = "xl/theAllysMixXSDXL_v10.safetensors"
 default_positive = ""
 default_negative = "(nude, low quality, worst quality, lowres, monochrome, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.7)"
 
 [models.anime_allysxl]
 description = "Allys Mix XL. Mixture of anime and realistic; use whatever."
 workflow = "workflow-sdxl-norefiner-unwrong-clip2.json.tmpl"
-baseline = "theAllysMixXSDXL_v10.safetensors"
+baseline = "xl/theAllysMixXSDXL_v10.safetensors"
 default_positive = "Anime screencap."
 default_negative = "(nude, low quality, worst quality, lowres, monochrome, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.7)"
 
 [models.zavyyumexl]
 description = "ZavyYume XL. Mixture of anime and cartoon styles. Use whatever."
 workflow = "workflow-sdxl-norefiner-upscale.json.tmpl"
-baseline = "zavyyumexl_v10.safetensors"
+baseline = "xl/zavyyumexl_v10.safetensors"
 default_positive = "soft outlines, magnificent, painterly, epic"
 default_negative = "low quality, worst quality, lowres, monochrome, photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark"
 
 [models.realcartoonxl]
 description = "RealCartoon XL. TODO."
 workflow = "workflow-sdxl-norefiner-unwrong-clip2.json.tmpl"
-baseline = "realcartoonXL_v2.safetensors"
+baseline = "xl/realcartoonXL_v2.safetensors"
 default_positive = "(by Kuvshinov Ilya, Mel Kishida, Studio Ghibli:0.6)"
 default_negative = "plastic, low quality, deformed, glitch, noisy, stock photo"
 
 [models.darkpizzaxl]
 description = "DarkPizza XL Origin. TODO."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "DarkPizzaXLOrigin_3.4.safetensors"
+baseline = "xl/DarkPizzaXLOrigin_3.4.safetensors"
 default_positive = ""
 default_negative = "low quality, deformed, glitch, noisy, stock photo"
 
 [models.breakdomainxl]
 description = "BreakDomain XL. Best for stylized art. Use tags."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "breakdomainxl_V06d.safetensors"
+baseline = "xl/breakdomainxl_V06d.safetensors"
 default_positive = "absurdres, highres, ultra detailed"
 default_negative = "(low quality, worst quality, lowres, monochrome, photographic, realistic, realism, 35mm film, dslr, cropped, frame, text, deformed, glitch, noise, noisy, signature, watermark:0.5)"
 
 [models.rundiffusionxl]
 description = "RunDiffusionXL Beta. Aims at photorealistic fantasy art. Use English."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "RunDiffusionXL_beta.safetensors"
-refiner = "sd_xl_refiner_1.0.safetensors"
+baseline = "xl/RunDiffusionXL_beta.safetensors"
+refiner = "xl/sd_xl_refiner_1.0.safetensors"
 default_positive = ""
 default_negative = "3d, low quality, worst quality, mutation, deformed hands, ( three arms or more, three hands or more, three legs or more, three feet or more:1.6)"
 
 [models.duchaitenxl]
 description = "Duchaiten v1.0. Good for aesthetics, bad for fanart or anime. Use English."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "DucHaiten-AIart-XL.safetensors"
+baseline = "xl/DucHaiten-AIart-XL.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.5), (low quality:1.5), (normal quality:1.5), lowres, bad anatomy, bad hands, multiple eyebrow, (cropped), extra limb, missing limbs, deformed hands, long neck, long body, (bad hands), signature, username, artist name, conjoined fingers, deformed fingers, ugly eyes, imperfect eyes, skewed eyes, unnatural face, unnatural body, error"
 
 [models.AstreaPixieXL]
 description = "AstreaPixie XL v1.6"
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "AstreaPixieXL_1.6.safetensors"
+baseline = "xl/AstreaPixieXL_1.6.safetensors"
 default_positive = "anime, 8k, high resolution"
 default_negative = "(worst quality, low quality, lowres:1.2), doll, plastic, (writing, signature, watermark, artist name:1.2), border, white border, (interlocked fingers:1.2)"
 
 [models.Dreamshaper]
 description = "Dreamshaper, tuned for realism. This model is experimental and may produce dragons."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "DreamshaperXL_alpha2.safetensors"
+baseline = "xl/DreamshaperXL_alpha2.safetensors"
 default_positive = "8k, highly detailed"
 default_negative = "embedding:BadDream, embedding:FastNegativeV2"
 
 [models."anime_xl_realistic"]
 description = "Anime Art XL, tuned for realism. This model is experimental and may produce strange results."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "anime_art_diffusion_xl_alpha3.safetensors"
+baseline = "xl/anime_art_diffusion_xl_alpha3.safetensors"
 default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
 default_negative = "embedding:counterfeit_negative_realistic, plastic, bad quality, doll"
 
 [models."anime_art_xl_alpha3"]
 description = "The very first anime-style model for SDXL. Quality may vary."
 workflow = "workflow-sdxl-norefiner-unwrong.json.tmpl"
-baseline = "anime_art_diffusion_xl_alpha3.safetensors"
+baseline = "xl/anime_art_diffusion_xl_alpha3.safetensors"
 default_positive = "Anime screencap, wlop, Sam Yang, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
 default_negative = "(pixar, 3d render, plastic, bad quality, doll:0.8)"
 
 [models."anime_art_xl_alpha2"]
 description = "The very first anime-style model for SDXL. Quality may vary."
 workflow = "workflow-sdxl-norefiner.json.tmpl"
-baseline = "anime_art_diffusion_xl_alpha2.safetensors"
+baseline = "xl/anime_art_diffusion_xl_alpha2.safetensors"
 default_positive = "screencap, high resolution, very detailed, high resolution, sharp, sharp image, 4k, 8k"
 default_negative = "plastic, bad quality, doll"
 
 [models."sdxl_1.0"]
 description = "The full 1.0 release of SDXL. This model is incredibly flexible."
 workflow = "workflow-sdxl.json.tmpl"
-baseline = "sd_xl_base_1.0.safetensors"
-refiner = "sd_xl_refiner_1.0.safetensors"
+baseline = "xl/sd_xl_base_1.0.safetensors"
+refiner = "xl/sd_xl_refiner_1.0.safetensors"
 default_positive = ""
 default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast"
 
 [models."sdxl_0.9"]
 description = "The v0.9 research preview of SDXL. This model is incredibly flexible."
 workflow = "workflow-sdxl.json.tmpl"
-baseline = "sd_xl_base_0.9.safetensors"
-refiner = "sd_xl_refiner_0.9.safetensors"
+baseline = "xl/sd_xl_base_0.9.safetensors"
+refiner = "xl/sd_xl_refiner_0.9.safetensors"
 default_positive = ""
 default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast"
 
 [models."AstreaPixie"]
 description = "AstreaPixie Radiance v1.6"
 workflow = "workflow-sd15-baseonly.json.tmpl"
-baseline = "AstreaPixie_Radiance_v1.6.safetensors"
+baseline = "1.5/AstreaPixie_Radiance_v1.6.safetensors"
 default_positive = "embedding:fcportrait"
 default_negative = "embedding:fcneg"
-
-[models.waifuxl]
-description = "Research preview of WaifuXL. This model is experimental and may produce strange results."
-workflow = "workflow-sdxl.json.tmpl"
-baseline = "wdxl-aesthetic-0.9.safetensors"
-refiner = "sd_xl_refiner_0.9.safetensors"
-default_positive = ""
-default_negative = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name"
 
 [models."MeinaMix_v11"]
 description = "MeinaMix v11. Good for aesthetics, bad for fanart. Use Danbooru tags."
 workflow = "workflow-sd15-baseonly.json.tmpl"
-baseline = "MeinaMix_v11.safetensors"
+baseline = "1.5/MeinaMix_v11.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
 
 [models."MeinaHentai_v4"]
 description = "MeinaHentai v4. Good for anatomy... use Danbooru tags."
 workflow = "workflow-sd15-baseonly.json.tmpl"
-baseline = "meinahentai_v4.safetensors"
+baseline = "1.5/meinahentai_v4.safetensors"
 default_positive = ""
 default_negative = "(worst quality:1.6, low quality:1.6), (zombie, sketch, interlocked fingers, comic)"
 
 [models."cetusMix_whalefall_v2"]
 description = "cetusMix whalefall v2. Good for fanart and dynamic scenes. Use Danbooru tags."
 workflow = "workflow-sd15-vae.json.tmpl"
-baseline = "cetusMix_whalefall_v2.safetensors"
-vae = "vae-ft-mse-840000-ema-pruned.vae.safetensors"
+baseline = "1.5/cetusMix_whalefall_v2.safetensors"
+vae = "vae-ft-mse-840000-ema-pruned.safetensors"
 default_positive = ""
 default_negative = "extra fingers,fewer fingers,(low quality, worst quality:1.4), (bad anatomy), (inaccurate limb:1.2), bad composition, inaccurate eyes, extra digit,fewer digits,(extra arms:1.2)"

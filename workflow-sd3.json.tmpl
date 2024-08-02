@@ -189,14 +189,14 @@
       "solver": "bosh3",
       "log_relative_tolerance": -2.5,
       "log_absolute_tolerance": -3.5,
-      "max_steps": __STEPS_TOTAL__
+      "max_steps": 200
     }
   },
   "sigmas": {
     "class_type": "BasicScheduler",
     "inputs": {
       "scheduler": "sgm_uniform",
-      "steps": __STEPS_TOTAL__,
+      "steps": 200,
       "denoise": 1.0,
       "model": ["13", 0]
     }
