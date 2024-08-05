@@ -379,7 +379,7 @@ impl ParsedRequest {
             result
         }
 
-        let combined_prompt = format!("{}. Style: {}", linguistic_prompt, supporting_prompt);
+        let combined_prompt = format!("Style: {}. Content: {}", supporting_prompt, linguistic_prompt);
 
         let workflow = workflow
             .replace("__REFINER_CHECKPOINT__", &json_encode_string(model_config.refiner.as_ref().unwrap_or(&model_config.baseline)))

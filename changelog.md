@@ -15,8 +15,9 @@
 
 # Models
 
-- Default model changed to Flux1-dev. Use highly descriptive english! Dream works well.
-- Added Flux1-dev as `-m flow`. This is a highly capable anime model, if you use highly descriptive english. It also does photorealistic output with `--np`.
+- Default model changed to flux-anime. Use highly descriptive english! Dream works well.
+- Renamed flux to flux-anime, and added flux-realistic. If what you want is neither, use just `-m flux`, but remember to pick a style!
+- Note that `-m flux` (Flux1-dev) currently does not support negative prompts.
 - Added AuraFlow v0.1 as `-m auraflow`. This is obviously experimental, so play a bit. It works better with dream than regular prompting, probably.
 - Swapped `-m realistic` to RealVisXL 4.0. It's quite good at making pretty things.
 - Added `-m pixelart`. This produces... pixel art. Add "16 bit", "32 bit" or "64 bit" to the prompt to control the detail level, and use danbooru tags.

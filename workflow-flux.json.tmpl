@@ -108,9 +108,9 @@
   },
   "17": {
     "inputs": {
-      "scheduler": "simple",
+      "scheduler": "beta",
       "steps": __STEPS_TOTAL__,
-      "denoise": 0.88,
+      "denoise": 1.0,
       "model": [
         "12",
         0
@@ -132,21 +132,16 @@
   },
   "27": {
     "inputs": {
-      "cfg": 3.5,
       "model": [
         "12",
         0
       ],
-      "positive": [
+      "conditioning": [
         "6",
-        0
-      ],
-      "negative": [
-        "28",
         0
       ]
     },
-    "class_type": "CFGGuider",
+    "class_type": "BasicGuider",
     "_meta": {
       "title": "CFGGuider"
     }

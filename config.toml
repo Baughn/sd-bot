@@ -25,7 +25,7 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "flux"
+default = "flux-anime"
 sdxl = "sdxl_1.0"
 "sd3" = "sd3-medium"
 "Cartoon" = "ponyxl"
@@ -38,11 +38,25 @@ sdxl = "sdxl_1.0"
 "AnimeXL" = "animavividxl"
 "honkai" = "animaginexl"
 
+[models.flux-realistic]
+baseline = "flux1-dev.sft"
+description = "Flux-dev-1. Use highly descriptive english."
+workflow = "workflow-flux.json.tmpl"
+default_positive = "High-quality photo."
+default_negative = ""
+
 [models.flux]
 baseline = "flux1-dev.sft"
 description = "Flux-dev-1. Use highly descriptive english."
 workflow = "workflow-flux.json.tmpl"
-default_positive = "Hyperdetailed anime."
+default_positive = ""
+default_negative = ""
+
+[models.flux-anime]
+baseline = "flux1-dev.sft"
+description = "Flux-dev-1. Use highly descriptive english."
+workflow = "workflow-flux.json.tmpl"
+default_positive = "Anime masterpiece."
 default_negative = ""
 
 [models.auraflow]

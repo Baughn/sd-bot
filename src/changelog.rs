@@ -109,7 +109,7 @@ pub async fn get_new_changelog_entry(context: &BotContext, user: &str) -> Result
                     .await
                     .context("While marking changelog entry seen")?;
                 // Let's format this a bit.
-                let unseen = format!("{} update:\n{}", feature_name, unseen);
+                let unseen = format!("{}:\n{}", feature_name, unseen);
                 return Ok(Some(unseen));
             }
         }
