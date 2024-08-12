@@ -307,8 +307,8 @@ impl ParsedRequest {
         if parsed.steps < 1 || parsed.count < 1 {
             bail!("We're done! Wasn't that fast?")
         }
-        if parsed.count > 16 {
-            bail!("Count must be 16 or less");
+        if parsed.count > 9 {
+            parsed.count = 9;
         }
         if parsed.max_batch_size() < 1 || (parsed.width * parsed.height > 1600 * 1600) {
             bail!("Resolution is too high");
@@ -521,7 +521,7 @@ impl ImageGeneratorModule {
                     // Something happened, so we should poll the history endpoint.
                     // We'll do that below.
                 },
-                _ = futures_time::task::sleep(futures_time::time::Duration::from_secs(30)).fuse() => {
+                _ = futures_time::task::sleep(futures_time::time::Duration::from_secs(90)).fuse() => {
                     warn!("Websocket sleep timed out");
                     // Really this should never happen, but try to recover anyway.
                 },
