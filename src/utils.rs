@@ -1,7 +1,4 @@
-use std::{
-    io::Cursor,
-    os::unix::prelude::PermissionsExt,
-};
+use std::{io::Cursor, os::unix::prelude::PermissionsExt};
 
 use anyhow::{bail, Context, Result};
 use image::GenericImage;
@@ -91,22 +88,36 @@ pub fn overview_of_pictures(pngs: &[Vec<u8>]) -> Result<Vec<u8>> {
     }
 }
 
-pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Vec<u8>>) -> Result<Vec<String>> {
+pub async fn upload_images(
+    config: &BotConfigModule,
+    uuid: &Uuid,
+    images: Vec<Vec<u8>>,
+) -> Result<Vec<String>> {
     let mut urls = Vec::new();
     // First, we save the images to temporary files.
     let tmp = tempfile::Builder::new()
         .prefix("GANBot")
         .tempdir()
         .context("failed to create temporary directory")?;
-    info!("Uploading {} bytes in {} images", images.iter().map(|i| i.len()).sum::<usize>(), images.len());
-    let temporaries = images.into_iter().enumerate().map(|(i, data)| {
-        // These should all be jpegs. We'll assume.
-        let filename = format!("{}.{}.jpeg", uuid, i);
-        let path = tmp.path().join(&filename);
-        std::fs::write(&path, data).context("failed to write temporary file")?;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).context("failed to chmod temporary file")?;
-        anyhow::Ok((filename, path))
-    }).collect::<Result<Vec<_>>>().context("failed to write temporary files")?;
+    info!(
+        "Uploading {} bytes in {} images",
+        images.iter().map(|i| i.len()).sum::<usize>(),
+        images.len()
+    );
+    let temporaries = images
+        .into_iter()
+        .enumerate()
+        .map(|(i, data)| {
+            // These should all be jpegs. We'll assume.
+            let filename = format!("{}.{}.jpeg", uuid, i);
+            let path = tmp.path().join(&filename);
+            std::fs::write(&path, data).context("failed to write temporary file")?;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+                .context("failed to chmod temporary file")?;
+            anyhow::Ok((filename, path))
+        })
+        .collect::<Result<Vec<_>>>()
+        .context("failed to write temporary files")?;
     // Then upload them all at once, using scp.
     let (host, webdir, relative) = {
         config
@@ -137,6 +148,11 @@ pub async fn upload_images(config: &BotConfigModule, uuid: &Uuid, images: Vec<Ve
     }
 
     Ok(urls)
+}
+
+/// Clamps string length to a maximum limit.
+pub fn clamp_string(text: &str, limit: usize) -> &str {
+    break_line(text, limit).0
 }
 
 /// Breaks a string into two halves, with the first half being at most `length_limit` bytes long.
@@ -228,7 +244,10 @@ pub fn convert_to_jpeg(image: Vec<u8>) -> Result<Vec<u8>> {
     let image = image::load_from_memory(&image).context("failed to parse image")?;
     let mut output = Vec::new();
     image
-        .write_to(&mut Cursor::new(&mut output), image::ImageOutputFormat::Jpeg(90))
+        .write_to(
+            &mut Cursor::new(&mut output),
+            image::ImageOutputFormat::Jpeg(90),
+        )
         .context("failed to encode WebP")?;
     Ok(output)
 }
@@ -255,7 +274,6 @@ pub fn get_individual_url(url: &str, replacement: &str) -> Result<String> {
         bail!("Expected url to end in .0.foo");
     }
 }
-
 
 pub(crate) fn simplify_fraction(width: u32, height: u32) -> (u32, u32) {
     let gcd = num::integer::gcd(width, height);
@@ -285,8 +303,14 @@ mod tests {
     #[test]
     fn test_extract_url() {
         assert_eq!(extract_url("hello world"), None);
-        assert_eq!(extract_url("http://example.com not ready"), Some("http://example.com"));
-        assert_eq!(extract_url("hello https://example.com world"), Some("https://example.com"));
+        assert_eq!(
+            extract_url("http://example.com not ready"),
+            Some("http://example.com")
+        );
+        assert_eq!(
+            extract_url("hello https://example.com world"),
+            Some("https://example.com")
+        );
     }
 
     #[test]

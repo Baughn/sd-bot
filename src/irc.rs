@@ -269,7 +269,7 @@ impl IrcTask {
                     return Ok(());
                 }
                 let text = context.prompt_generator.gpt3_5(
-                    "Become a Snarkasaurus Rex. Don't summarize, but answer the question accurately and completely. Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
+                    "Become a Snarkasaurus Rex. Don't summarize, but answer the question accurately and completely. If someone asks you anything in a language other than english, then answer in MULTIPLE random OTHER languages that also isn't english, switching randomly. Two or three per sentence, without reusing them. Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
                     params).await?;
                 send(sender, target, &text).await?;
                 return Ok(());
@@ -353,7 +353,7 @@ impl IrcTask {
                             .await?;
                         }
                         if let Some(comment) = req.comment {
-                            send(sender, target, &format!("{}: {}", nick, comment)).await?;
+                            send(sender, target, comment.as_ref()).await?;
                         }
                     }
                     crate::generator::GenerationEvent::Parsed(_parsed) => {
@@ -388,7 +388,7 @@ lazy_static! {
 }
 
 async fn send(sender: &Sender, target: &str, text: &str) -> Result<()> {
-    let length_limit: usize = 460 - target.len();
+    let length_limit: usize = 440 - target.len();
     let lines = utils::segment_lines(text, length_limit);
     {
         // Make sure the inner mutex exists.
@@ -406,7 +406,7 @@ async fn send(sender: &Sender, target: &str, text: &str) -> Result<()> {
         sender
             .send_privmsg(target, line)
             .context("failed to send answer")?;
-        tokio::time::sleep(Duration::from_millis(1000)).await;
+        tokio::time::sleep(Duration::from_millis(250)).await;
     }
     Ok(())
 }

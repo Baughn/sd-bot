@@ -196,7 +196,8 @@ impl Handler {
         let mut status_text = if let Some(dream) = request.dream {
             vec![format!("Dreaming based on `{}`", dream)]
         } else {
-            vec![format!("Dreaming about `{}`", request.raw)]
+            let raw = utils::clamp_string(&request.raw, 1600);
+            vec![format!("Dreaming about `{}`", raw)]
         };
 
         // However, we might want to stick a changelog entry in there.
@@ -219,15 +220,15 @@ impl Handler {
                 GenerationEvent::GPTCompleted(c) => {
                     if let Some(dream) = c.dream {
                         status_text[0] = format!(
-                            "Dreaming about `{}`\nBased on `{}`\n\n{}\n",
-                            c.raw,
-                            dream,
+                            "Dreaming about `{}`\n(Displayed prompt is cropped)\n\nBased on `{}`\n\n{}\n",
+                            utils::clamp_string(&c.raw, 1200),
+                            utils::clamp_string(&dream, 1200),
                             c.comment.unwrap_or_default(),
                         );
                     } else {
                         status_text[0] = format!(
                             "Dreaming about `{}`\n\n{}\n",
-                            c.raw,
+                            utils::clamp_string(&c.raw, 1600),
                             c.comment.unwrap_or_default(),
                         );
                     }
@@ -285,7 +286,7 @@ impl Handler {
                         0,
                         format!(
                             "Dreamed about `{}`\nGenerated {} images; now uploading",
-                            c.base.base.raw,
+                            utils::clamp_string(&c.base.base.raw, 1200),
                             c.images.len()
                         ),
                     );
@@ -301,7 +302,11 @@ impl Handler {
 
                     // Send the results to the user.
                     let mut text = vec![
-                        format!("Dreams of `{}` | For {}", c.base.base.raw, mention_user),
+                        format!(
+                            "Dreams of `{}` | For {}",
+                            utils::clamp_string(&c.base.base.raw, 1200),
+                            mention_user
+                        ),
                         format!(
                             "Seed {} | {}x{} | {} steps | Guidance {}\n{}\n",
                             c.base.seed,

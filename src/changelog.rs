@@ -81,6 +81,7 @@ fn parse_changelog() -> Changelog {
             }
             current_update = line.to_string();
             current_update += "\n";
+        } else if line.is_empty() {
         } else {
             current_update += line;
             current_update += "\n";

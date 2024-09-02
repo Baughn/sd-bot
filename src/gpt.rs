@@ -2,9 +2,13 @@ use std::io::Write;
 
 use anyhow::{Context, Result};
 use log::trace;
-use openai_api_rs::v1::chat_completion::{self, ChatCompletionRequest};
+use openai_api_rs::v1::chat_completion::{self, ChatCompletionRequest, Content};
 use serde::Deserialize;
+use serde_json::json;
+use std::collections::HashMap;
 use std::fmt::{self, Display};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 use crate::{config::BotConfigModule, utils};
 
@@ -12,20 +16,13 @@ use crate::{config::BotConfigModule, utils};
 #[derive(Debug, Deserialize)]
 pub struct GPTPrompt {
     prompt: String,
-    style: String,
-    neg: String,
     aspect_ratio: String,
-    model: String,
     pub comment: String,
 }
 
 impl Display for GPTPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} --style {} --ar {} -m {} --no {}",
-            self.prompt, self.style, self.aspect_ratio, self.model, self.neg
-        )
+        write!(f, "{} --ar {} -m flux", self.prompt, self.aspect_ratio)
     }
 }
 
@@ -33,11 +30,20 @@ impl Display for GPTPrompt {
 pub struct GPTPromptGeneratorModule {
     #[allow(dead_code)]
     config: BotConfigModule,
+    userdata: Arc<Mutex<HashMap<String, UserData>>>,
+}
+
+struct UserData {
+    last_prompt: String,
+    last_response: String,
 }
 
 impl GPTPromptGeneratorModule {
     pub fn new(config: BotConfigModule) -> Self {
-        Self { config }
+        Self {
+            config,
+            userdata: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     // TODO: Fix this duplication.
@@ -45,7 +51,7 @@ impl GPTPromptGeneratorModule {
         // Set up the OpenAI client.
         let key = std::env::var("OPENAI_API_KEY")
             .context("OPENAI_API_KEY not set. Please stick to real help subjects.")?;
-        let client = openai_api_rs::v1::api::Client::new(key);
+        let client = openai_api_rs::v1::api::OpenAIClient::new(key);
         // Ask GPT-3.5-turbo to complete the prompt.
         let model = "gpt-4o".to_string();
         let req = ChatCompletionRequest {
@@ -53,19 +59,19 @@ impl GPTPromptGeneratorModule {
             messages: vec![
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::system,
-                    content: system_prompt.to_string(),
+                    content: Content::Text(system_prompt.to_string()),
                     name: None,
-                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
                 },
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::user,
-                    content: user_prompt.to_string(),
+                    content: Content::Text(user_prompt.to_string()),
                     name: None,
-                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
                 },
             ],
-            functions: None,
-            function_call: None,
             temperature: Some(1.0),
             top_p: None,
             n: None,
@@ -76,6 +82,11 @@ impl GPTPromptGeneratorModule {
             frequency_penalty: None,
             logit_bias: None,
             user: None,
+            seed: None,
+            tools: None,
+            parallel_tool_calls: None,
+            tool_choice: None,
+            response_format: None,
         };
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(120),
@@ -103,15 +114,50 @@ impl GPTPromptGeneratorModule {
             .context("While generating prompt")
     }
 
-    /// Generates a fully baked prompt for the user, using GPT-4.
     async fn do_generate(&self, user: &str, dream: &str) -> Result<GPTPrompt> {
-        let prompt_template = std::fs::read_to_string("prompt-completion.tmpl")
-            .context("While reading prompt-completion.tmpl")?;
+        self.inner_generate(user, dream, "prompt-completion.tmpl")
+            .await
+    }
+
+    pub async fn comment(&self, user: &str, dream: &str) -> Result<String> {
+        let strategy = tokio_retry::strategy::FixedInterval::from_millis(1000).take(2);
+        tokio_retry::Retry::spawn(strategy, || self.do_comment(user, dream))
+            .await
+            .context("While generating comment")
+    }
+
+    async fn do_comment(&self, user: &str, dream: &str) -> Result<String> {
+        let result = self
+            .inner_generate(user, dream, "prompt-comment.tmpl")
+            .await?;
+        Ok(result.comment)
+    }
+
+    /// Generates a fully baked prompt for the user, using GPT-4.
+    async fn inner_generate(&self, user: &str, dream: &str, template: &str) -> Result<GPTPrompt> {
+        let prompt_template =
+            std::fs::read_to_string(template).context(format!("While reading {:?}", template))?;
         trace!("Prompt template hash: {}", utils::hash(&prompt_template));
         // Set up the OpenAI client.
         let key = std::env::var("OPENAI_API_KEY")
             .context("OPENAI_API_KEY not set. Please use /prompt.")?;
-        let client = openai_api_rs::v1::api::Client::new(key);
+        let client = openai_api_rs::v1::api::OpenAIClient::new(key);
+        // Create the user history message.
+        let last_prompt;
+        let last_response;
+        let user_message;
+        {
+            let user_data = self.userdata.lock().await;
+            if let Some(data) = user_data.get(user) {
+                last_prompt = data.last_prompt.as_ref();
+                last_response = data.last_response.as_ref();
+            } else {
+                last_prompt = "None";
+                last_response = "None";
+            }
+            user_message = format!("Username: {}\nNSFW disallowed\n\nPrevious prompt:\n{}\n\nPrevious response:\n{}\n\nCurrent prompt:\n{}",
+                user, last_prompt, last_response, dream);
+        }
         // Ask GPT-4 to complete the prompt.
         let model = "gpt-4o".to_string();
         let req = ChatCompletionRequest {
@@ -119,29 +165,34 @@ impl GPTPromptGeneratorModule {
             messages: vec![
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::system,
-                    content: prompt_template,
+                    content: Content::Text(prompt_template),
                     name: None,
-                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
                 },
                 chat_completion::ChatCompletionMessage {
                     role: chat_completion::MessageRole::user,
-                    content: dream.to_string(),
+                    content: Content::Text(user_message),
                     name: None,
-                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
                 },
             ],
-            functions: None,
-            function_call: None,
-            temperature: Some(0.9),
+            seed: None,
+            tools: None,
+            parallel_tool_calls: None,
+            tool_choice: None,
+            temperature: Some(0.5),
             top_p: None,
             n: None,
             stream: Some(false),
-            stop: Some(vec!["\n\n".to_string(), "}".to_string()]),
-            max_tokens: Some(300),
+            stop: None,
+            max_tokens: Some(2048),
             presence_penalty: None,
             frequency_penalty: None,
             logit_bias: None,
             user: Some(user.to_string()),
+            response_format: Some(json!({"type": "json_object"})),
         };
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(120),
@@ -158,9 +209,6 @@ impl GPTPromptGeneratorModule {
             .content
             .clone()
             .context("No content in GPT response")?;
-        // This won't include a trailing }, since that's a stop token.
-        // So we'll add it back in.
-        let result = format!("{} }}", result);
         // Also save these to a file, for later fine-tuning of a local model.
         let mut logfile = std::fs::OpenOptions::new()
             .append(true)
@@ -174,14 +222,24 @@ impl GPTPromptGeneratorModule {
         )
         .context("While writing to prompt-completions.txt")?;
         // Parse the result into a GPTPrompt.
-        // There's a pretty good chance GPT-4 will try to markdown-escape this with ```json,
-        // so we'll strip that out if it's there.
-        let result = result
-            .trim_start_matches("```json\n")
-            .trim_end_matches("```");
         // If it isn't valid, we'll bail with the whole completion in the error.
-        let parsed = serde_json::from_str::<GPTPrompt>(result)
+        let parsed = serde_json::from_str::<GPTPrompt>(&result)
             .with_context(|| format!("While parsing GPTPrompt from {:?}", result))?;
+        // Guess it's fine. Update the user data.
+        {
+            let mut user_data = self.userdata.lock().await;
+            user_data.insert(
+                user.to_string(),
+                UserData {
+                    last_prompt: dream.to_string(),
+                    // We'll pretend it only output the prompt and comment, and store that as JSON.
+                    last_response: format!(
+                        "{{ \"prompt\": \"{}\", \"comment\": \"{}\" }}",
+                        parsed.prompt, parsed.comment
+                    ),
+                },
+            );
+        }
         Ok(parsed)
     }
 }

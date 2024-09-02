@@ -1,0 +1,33 @@
+{
+  "1": {
+    "inputs": {
+      "limit_opus_free": true,
+      "width": __WIDTH__,
+      "height": __HEIGHT__,
+      "positive": "__PROMPT_A__, best quality, amazing quality, very aesthetic, absurdres, __PROMPT_B__",
+      "negative": "__NEGATIVE_PROMPT__",
+      "steps": 28,
+      "cfg": __BASE_CFG__,
+      "smea": "none",
+      "sampler": "k_dpmpp_sde",
+      "scheduler": "native",
+      "seed": __SEED__,
+      "uncond_scale": 1,
+      "cfg_rescale": 0
+    },
+    "class_type": "GenerateNAID"
+  },
+  "3": {
+    "inputs": {
+      "filename_prefix": "NAI",
+      "images": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

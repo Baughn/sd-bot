@@ -720,8 +720,7 @@ impl ImageGeneratorModule {
             } else {
                 // This is an explicit request. Generate some fun commentary, but only in channels.
                 if !request.private {
-                    let comment = self.0.read().await.prompt_generator.gpt3_5("Here's an image generation prompt; please provide a snarky comment about the intended image. (But not the style of prompting. That's meant to look weird.",
-                        &request.raw).await?;
+                    let comment = self.0.read().await.prompt_generator.comment(&request.user, &request.raw).await?;
                     request.comment = Some(comment);
                     yield GenerationEvent::GPTCompleted(request.clone());
                 }
