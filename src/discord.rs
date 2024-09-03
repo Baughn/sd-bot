@@ -569,8 +569,8 @@ impl Handler {
                 let url = {
                     // Is there an embed?
                     if let Some(embed) = component.message.embeds.first() {
-                        if let Some(url) = embed.url.as_ref() {
-                            url.as_ref()
+                        if let Some(url) = embed.image.as_ref() {
+                            url.url.as_ref()
                         } else {
                             // Is there a URL in the content?
                             let content = &component.message.content;
