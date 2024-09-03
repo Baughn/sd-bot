@@ -1,7 +1,15 @@
 // These types describe the various stages of generation.
 // Each is logically a superset of the previous, and the final struct includes the output.
 
-use std::{fmt::Debug, pin::Pin, sync::Arc};
+use std::{
+    fmt::Debug,
+    pin::Pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use anyhow::{bail, Context, Ok, Result};
 use async_stream::try_stream;
@@ -505,6 +513,7 @@ struct ImageGenerator {
     db: DatabaseModule,
     config: BotConfigModule,
     command_sender: UnboundedSender<(ParsedRequest, UnboundedSender<GenerationEvent>)>,
+    load: Arc<AtomicUsize>,
     prompt_generator: PromptGeneratorModule,
 }
 
@@ -524,11 +533,23 @@ impl ImageGeneratorModule {
             db,
             config,
             command_sender: tx,
+            load: Arc::new(AtomicUsize::new(0)),
             prompt_generator,
         })));
 
         tokio::task::spawn(generator.clone().run(rx));
         Ok(generator)
+    }
+
+    /// Waits until nothing is being generated, then returns.
+    pub async fn wait_until_idle(&self) {
+        loop {
+            let load = self.0.read().await.load.load(Ordering::Relaxed);
+            if load == 0 {
+                return;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
     }
 
     /// Generates a single batch of images.
@@ -759,6 +780,15 @@ impl ImageGeneratorModule {
         // Previously generated picture... if any.
         let mut previous_request: Option<ParsedRequest> = None;
         loop {
+            // Update the load.
+            let current_load = queue.len() + if current_tx.is_some() { 1 } else { 0 };
+            self.0
+                .write()
+                .await
+                .load
+                .store(current_load, Ordering::Relaxed);
+
+            // Wait for a new command or the current generation to finish.
             if current_tx.is_none() {
                 // We're not generating anything right now, so we can pick something off the queue.
                 if let Some((request, tx)) =

@@ -181,6 +181,26 @@ impl IrcTask {
         params: &str,
     ) -> Result<()> {
         let requests = match cmd {
+            "restart" => {
+                if nick == "Baughn" {
+                    // First, wait until the generator is idle.
+                    context.image_generator.wait_until_idle().await;
+                    send(sender, target, "Restarting...").await?;
+                    // ssh saya.local systemctl restart comfyui.service
+                    // tokio::process::Command::new("ssh")
+                    //     .arg("saya.local")
+                    //     .arg("systemctl")
+                    //     .arg("restart")
+                    //     .arg("comfyui.service")
+                    //     .status()
+                    //     .await
+                    //     .context("failed to restart service")?;
+                    // Now exit.
+                    std::process::exit(0);
+                } else {
+                    return send(sender, target, "You are not my owner.").await;
+                }
+            }
             "dream" => vec![UserRequest {
                 user: nick.into(),
                 dream: Some(params.into()),
