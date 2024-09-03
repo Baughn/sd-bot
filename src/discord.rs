@@ -318,7 +318,7 @@ impl Handler {
                             c.base.height,
                             c.base.steps,
                             c.base.guidance_scale,
-                            c.base.base.comment.unwrap_or_default(),
+                            utils::clamp_string(&c.base.base.comment.unwrap_or_default(), 900),
                         ),
                     ];
                     if let Some(dream) = c.base.base.dream {
