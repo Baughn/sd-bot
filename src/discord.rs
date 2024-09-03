@@ -221,14 +221,14 @@ impl Handler {
                     if let Some(dream) = c.dream {
                         status_text[0] = format!(
                             "Dreaming about `{}`\n(Displayed prompt is cropped)\n\nBased on `{}`\n\n{}\n",
-                            utils::clamp_string(&c.raw, 1200),
-                            utils::clamp_string(&dream, 1200),
+                            utils::clamp_string(&c.raw, 900),
+                            utils::clamp_string(&dream, 900),
                             c.comment.unwrap_or_default(),
                         );
                     } else {
                         status_text[0] = format!(
                             "Dreaming about `{}`\n\n{}\n",
-                            utils::clamp_string(&c.raw, 1600),
+                            utils::clamp_string(&c.raw, 900),
                             c.comment.unwrap_or_default(),
                         );
                     }
