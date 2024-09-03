@@ -1,22 +1,32 @@
 // These types describe the various stages of generation.
 // Each is logically a superset of the previous, and the final struct includes the output.
 
-use std::{fmt::Debug, sync::Arc, pin::Pin};
+use std::{fmt::Debug, pin::Pin, sync::Arc};
 
-use anyhow::{Result, Context, bail, Ok};
+use anyhow::{bail, Context, Ok, Result};
 use async_stream::try_stream;
-use futures::{StreamExt, Stream, channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded}, SinkExt, stream::{empty, FusedStream}, select, FutureExt};
+use futures::{
+    channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    select,
+    stream::{empty, FusedStream},
+    FutureExt, SinkExt, Stream, StreamExt,
+};
 use lazy_static::lazy_static;
-use log::{info, debug, trace, warn};
+use log::{debug, info, trace, warn};
 use rand::seq::SliceRandom;
 use reqwest::RequestBuilder;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use tokio_tungstenite as ws;
 use uuid::Uuid;
 
-use crate::{config::{BotConfig, BotConfigModule, BotBackend}, gpt::GPTPromptGeneratorModule, utils, db::DatabaseModule};
+use crate::{
+    config::{BotBackend, BotConfig, BotConfigModule},
+    db::DatabaseModule,
+    gpt::PromptGeneratorModule,
+    utils,
+};
 
 /// Used to determine if a model name is close enough to a real model name.
 /// And for the tests.
@@ -51,7 +61,7 @@ pub struct UserRequest {
     pub source: Source,
     #[serde(default)]
     pub private: bool,
-    pub comment: Option<String>,  // Sometimes filled in by GPT-4.
+    pub comment: Option<String>, // Sometimes filled in by GPT-4.
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -65,19 +75,19 @@ pub enum Source {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ParsedRequest {
     pub base: UserRequest,
-    pub model_name: String, // --model, -m
+    pub model_name: String,        // --model, -m
     pub linguistic_prompt: String, // Default.
     pub supporting_prompt: String, // --style -s
-    pub negative_prompt: String, // --no
-    pub use_pos_default: bool, // --np
-    pub use_neg_default: bool, // --nn
-    pub guidance_scale: f32, // --scale
-    pub aesthetic_scale: f32, // --aesthetic, -a
-    pub steps: u32, // --steps
-    pub count: u32, // --count, -c
-    pub seed: u32, // --seed
+    pub negative_prompt: String,   // --no
+    pub use_pos_default: bool,     // --np
+    pub use_neg_default: bool,     // --nn
+    pub guidance_scale: f32,       // --scale
+    pub aesthetic_scale: f32,      // --aesthetic, -a
+    pub steps: u32,                // --steps
+    pub count: u32,                // --count, -c
+    pub seed: u32,                 // --seed
     // Width and height cannot be set directly; they are derived from --ar.
-    pub width: u32, 
+    pub width: u32,
     pub height: u32,
 }
 
@@ -126,7 +136,6 @@ impl Debug for CompletedRequest {
 
 type JpegBlob = Vec<u8>;
 
-
 impl ParsedRequest {
     pub fn parse_aspect_ratio(stride: u32, target: u32, value: &str) -> Result<(u32, u32)> {
         let mut parts = value.splitn(2, ':');
@@ -158,7 +167,10 @@ impl ParsedRequest {
         let mut parsed = ParsedRequest {
             // Default seed is the POSIX timestamp.
             base: request.clone(),
-            seed: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as u32,
+            seed: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as u32,
             ..Default::default()
         };
         // Parsing outputs.
@@ -166,7 +178,7 @@ impl ParsedRequest {
         let mut supporting_prompt = vec![];
         let mut negative_prompt = vec![];
         let mut override_wh = None;
-        
+
         // Parsing state.
         let mut last_option = None;
         let mut last_value = None;
@@ -218,19 +230,32 @@ impl ParsedRequest {
             // Did we just finish reading an option?
             // First, check for flags that take no arguments.
             match last_option {
-                Some("np") => { parsed.use_pos_default = false; last_option = None; },
-                Some("nn") => { parsed.use_neg_default = false; last_option = None; },
-                _ => {},
+                Some("np") => {
+                    parsed.use_pos_default = false;
+                    last_option = None;
+                }
+                Some("nn") => {
+                    parsed.use_neg_default = false;
+                    last_option = None;
+                }
+                _ => {}
             };
             // Then, check for flags that do take arguments.
             if let Some(value) = last_value {
                 match last_option.unwrap() {
                     "model" | "m" => value.clone_into(&mut parsed.model_name),
                     "style" | "s" => supporting_prompt.push(value),
-                    "scale" => parsed.guidance_scale = value.parse().context("Scale must be a number")?,
-                    "aesthetic" | "a" => parsed.aesthetic_scale = value.parse().context("Aesthetic scale must be a number")?,
+                    "scale" => {
+                        parsed.guidance_scale = value.parse().context("Scale must be a number")?
+                    }
+                    "aesthetic" | "a" => {
+                        parsed.aesthetic_scale =
+                            value.parse().context("Aesthetic scale must be a number")?
+                    }
                     "steps" => parsed.steps = value.parse().context("Steps must be a number")?,
-                    "count" | "c" => parsed.count = value.parse().context("Count must be a number")?,
+                    "count" | "c" => {
+                        parsed.count = value.parse().context("Count must be a number")?
+                    }
                     "seed" => parsed.seed = value.parse().context("Seed must be a number")?,
                     "w" => {
                         let w = value.parse().context("Width must be an integer")?;
@@ -239,7 +264,7 @@ impl ParsedRequest {
                         } else {
                             override_wh = Some((w, parsed.height));
                         }
-                    },
+                    }
                     "h" => {
                         let h = value.parse().context("Height must be an integer")?;
                         if let Some((w, _)) = override_wh {
@@ -247,10 +272,10 @@ impl ParsedRequest {
                         } else {
                             override_wh = Some((parsed.width, h));
                         }
-                    },
+                    }
                     "ar" => {
                         ar = value;
-                    },
+                    }
                     x => bail!("Unknown option: {}", x),
                 }
                 last_option = None;
@@ -272,7 +297,11 @@ impl ParsedRequest {
             }
             if let Some(best_model) = best_model {
                 if best_similarity < SIMILARITY_THRESHOLD {
-                    bail!("Unknown model: {}. Did you mean {}?", parsed.model_name, best_model);
+                    bail!(
+                        "Unknown model: {}. Did you mean {}?",
+                        parsed.model_name,
+                        best_model
+                    );
                 } else {
                     parsed.model_name.clone_from(best_model);
                 }
@@ -339,13 +368,26 @@ impl ParsedRequest {
     /// - Replace the placeholders with the actual parameters.
     /// - Confirm that the result is valid JSON.
     /// - Take the text, and pass it to /prompt as POST data.
-    fn build_query(&self, config: &BotConfig, batch_size: u32, seed_offset: u32) -> Result<RequestBuilder> {
+    fn build_query(
+        &self,
+        config: &BotConfig,
+        batch_size: u32,
+        seed_offset: u32,
+    ) -> Result<RequestBuilder> {
         // First, check for aliases.
-        let model_name = config.aliases.get(&self.model_name).cloned().unwrap_or(self.model_name.clone());
+        let model_name = config
+            .aliases
+            .get(&self.model_name)
+            .cloned()
+            .unwrap_or(self.model_name.clone());
         // Then, load the model config.
-        let model_config = config.models.get(&model_name).ok_or_else(|| anyhow::anyhow!("no such model: {}", model_name))?;
+        let model_config = config
+            .models
+            .get(&model_name)
+            .ok_or_else(|| anyhow::anyhow!("no such model: {}", model_name))?;
         // Load the workflow.
-        let workflow = std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
+        let workflow =
+            std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
         // Replace the placeholders.
         let linguistic_prompt = if self.use_pos_default {
             model_config.default_positive.clone() + ", " + &self.linguistic_prompt
@@ -379,12 +421,29 @@ impl ParsedRequest {
             result
         }
 
-        let combined_prompt = format!("Style: {}. Content: {}", supporting_prompt, linguistic_prompt);
+        let combined_prompt = format!(
+            "Style: {}. Content: {}",
+            supporting_prompt, linguistic_prompt
+        );
 
         let workflow = workflow
-            .replace("__REFINER_CHECKPOINT__", &json_encode_string(model_config.refiner.as_ref().unwrap_or(&model_config.baseline)))
-            .replace("__BASE_CHECKPOINT__", &json_encode_string(&model_config.baseline))
-            .replace("__VAE__", &json_encode_string(model_config.vae.as_ref().unwrap_or(&"".to_string())))
+            .replace(
+                "__REFINER_CHECKPOINT__",
+                &json_encode_string(
+                    model_config
+                        .refiner
+                        .as_ref()
+                        .unwrap_or(&model_config.baseline),
+                ),
+            )
+            .replace(
+                "__BASE_CHECKPOINT__",
+                &json_encode_string(&model_config.baseline),
+            )
+            .replace(
+                "__VAE__",
+                &json_encode_string(model_config.vae.as_ref().unwrap_or(&"".to_string())),
+            )
             .replace("__NEGATIVE_PROMPT__", &json_encode_string(&negative_prompt))
             .replace("__PROMPT_A__", &json_encode_string(&linguistic_prompt))
             .replace("__PROMPT_B__", &json_encode_string(&supporting_prompt))
@@ -404,7 +463,8 @@ impl ParsedRequest {
             .replace("__POSITIVE_A_SCORE__", &self.aesthetic_scale.to_string())
             .replace("__NEGATIVE_A_SCORE__", "1.0");
         // Confirm that the result is valid JSON.
-        let workflow: serde_json::Value = serde_json::from_str(&workflow).context("failed to parse augmented workflow")?;
+        let workflow: serde_json::Value =
+            serde_json::from_str(&workflow).context("failed to parse augmented workflow")?;
         #[derive(Debug, Serialize)]
         struct Request {
             prompt: serde_json::Value,
@@ -416,7 +476,11 @@ impl ParsedRequest {
         };
         // Take the text, and pass it to /prompt as POST data.
         let request = serde_json::to_string(&request).context("failed to serialize request")?;
-        let request = reqwest::Client::new().post(format!("http://{}:{}/prompt", config.backend.host, config.backend.port))
+        let request = reqwest::Client::new()
+            .post(format!(
+                "http://{}:{}/prompt",
+                config.backend.host, config.backend.port
+            ))
             .body(request);
         Ok(request)
     }
@@ -437,14 +501,12 @@ impl ParsedRequest {
     }
 }
 
-
 struct ImageGenerator {
     db: DatabaseModule,
     config: BotConfigModule,
     command_sender: UnboundedSender<(ParsedRequest, UnboundedSender<GenerationEvent>)>,
-    prompt_generator: GPTPromptGeneratorModule,
+    prompt_generator: PromptGeneratorModule,
 }
-
 
 type EventStream = Pin<Box<dyn Send + FusedStream<Item = GenerationEvent>>>;
 
@@ -452,8 +514,11 @@ type EventStream = Pin<Box<dyn Send + FusedStream<Item = GenerationEvent>>>;
 pub struct ImageGeneratorModule(Arc<RwLock<ImageGenerator>>);
 
 impl ImageGeneratorModule {
-
-    pub fn new(db: DatabaseModule, config: BotConfigModule, prompt_generator: GPTPromptGeneratorModule) -> Result<Self> {
+    pub fn new(
+        db: DatabaseModule,
+        config: BotConfigModule,
+        prompt_generator: PromptGeneratorModule,
+    ) -> Result<Self> {
         let (tx, rx) = unbounded();
         let generator = ImageGeneratorModule(Arc::new(RwLock::new(ImageGenerator {
             db,
@@ -461,13 +526,16 @@ impl ImageGeneratorModule {
             command_sender: tx,
             prompt_generator,
         })));
-        
+
         tokio::task::spawn(generator.clone().run(rx));
         Ok(generator)
     }
 
     /// Generates a single batch of images.
-    async fn generate_batch(backend: &BotBackend, request: RequestBuilder) -> Result<Vec<JpegBlob>> {
+    async fn generate_batch(
+        backend: &BotBackend,
+        request: RequestBuilder,
+    ) -> Result<Vec<JpegBlob>> {
         #[derive(Deserialize)]
         struct ComfyUIResponse {
             prompt_id: String,
@@ -513,7 +581,13 @@ impl ImageGeneratorModule {
         // We limit the traffic by reading the websocket, only polling when it update or if
         // it's been a second.
         let mut filenames: Option<Vec<String>> = None;
-        let mut ws_client = ws::connect_async(format!("ws://{}:{}/ws?clientId={}", backend.host, backend.port, prompt_id)).await.context("failed to connect to websocket")?.0;
+        let mut ws_client = ws::connect_async(format!(
+            "ws://{}:{}/ws?clientId={}",
+            backend.host, backend.port, prompt_id
+        ))
+        .await
+        .context("failed to connect to websocket")?
+        .0;
         for _ in 0..10 {
             select! {
                 msg = ws_client.next() => {
@@ -528,11 +602,17 @@ impl ImageGeneratorModule {
             };
             trace!("Polling history");
             let client = reqwest::Client::new();
-            let history: serde_json::Value = client.get(format!("http://{}:{}/history/{}", backend.host, backend.port, prompt_id))
+            let history: serde_json::Value = client
+                .get(format!(
+                    "http://{}:{}/history/{}",
+                    backend.host, backend.port, prompt_id
+                ))
                 .send()
                 .await
                 .context("failed to poll history")?
-                .json().await.context("failed to parse history")?;
+                .json()
+                .await
+                .context("failed to parse history")?;
             // If the history is empty, we're not done yet.
             if history.as_object().map(|o| o.is_empty()).unwrap_or(false) {
                 continue;
@@ -541,8 +621,10 @@ impl ImageGeneratorModule {
             trace!("History: {:?}", history);
             // Extract the filenames from the history; these are the images we want.
             // They're at history[prompt_id].outputs.<number>.images[<index>].filename.
-            let outputs = history.get(prompt_id)
-                .and_then(|o| o.get("outputs")).context("history missing outputs")?;
+            let outputs = history
+                .get(prompt_id)
+                .and_then(|o| o.get("outputs"))
+                .context("history missing outputs")?;
             let outputs = outputs.as_object().context("outputs not an object")?;
             // This can contain multiple outputs, but we only care about whichever one
             // has a non-empty images array.
@@ -553,11 +635,14 @@ impl ImageGeneratorModule {
                 if images.is_empty() {
                     None
                 } else {
-                    let filenames = images.iter().map(|i| {
-                        let filename = i.get("filename")?;
-                        let filename = filename.as_str()?;
-                        Some(filename.to_owned())
-                    }).collect::<Option<Vec<_>>>();
+                    let filenames = images
+                        .iter()
+                        .map(|i| {
+                            let filename = i.get("filename")?;
+                            let filename = filename.as_str()?;
+                            Some(filename.to_owned())
+                        })
+                        .collect::<Option<Vec<_>>>();
                     Some(filenames)
                 }
             });
@@ -575,24 +660,29 @@ impl ImageGeneratorModule {
         let client = reqwest::Client::new();
         let mut final_images = Vec::new();
         for filename in filenames {
-            let image = client.get(format!("http://{}:{}/view", backend.host, backend.port))
+            let image = client
+                .get(format!("http://{}:{}/view", backend.host, backend.port))
                 .query(&[("filename", filename)])
                 .send()
                 .await
                 .context("failed to download image")?
-                .bytes().await.context("failed to read image")?;
-            final_images.push(utils::convert_to_jpeg(image.into()).context("failed to convert image")?);
+                .bytes()
+                .await
+                .context("failed to read image")?;
+            final_images
+                .push(utils::convert_to_jpeg(image.into()).context("failed to convert image")?);
         }
 
         Ok(final_images)
-    } 
+    }
 
     /// Runs the generator loop for a single request.
     /// Locks self for an instant at startup.
-    async fn do_generate(&self, request: ParsedRequest) -> impl FusedStream<Item = GenerationEvent> {
-        let config = {
-            self.0.read().await.config.snapshot().await
-        };
+    async fn do_generate(
+        &self,
+        request: ParsedRequest,
+    ) -> impl FusedStream<Item = GenerationEvent> {
+        let config = { self.0.read().await.config.snapshot().await };
         try_stream! {
             let backend = &config.backend;
             let mut remaining = request.count;
@@ -616,7 +706,7 @@ impl ImageGeneratorModule {
                     Self::generate_batch(backend, request).await.context("Failed to generate batch")
                 }).await.context("Ran out of retries")?;
 
-                final_images.extend(images); 
+                final_images.extend(images);
 
                 remaining -= batch_size;
                 seed_offset += batch_size;
@@ -631,7 +721,10 @@ impl ImageGeneratorModule {
     }
 
     /// Returns the highest-scoring request in the queue, if any.
-    fn highest_scoring<T>(queue: &mut Vec<(ParsedRequest, T)>, previous_request: &ParsedRequest) -> Option<(ParsedRequest, T)> {
+    fn highest_scoring<T>(
+        queue: &mut Vec<(ParsedRequest, T)>,
+        previous_request: &ParsedRequest,
+    ) -> Option<(ParsedRequest, T)> {
         if queue.is_empty() {
             return None;
         }
@@ -654,7 +747,10 @@ impl ImageGeneratorModule {
     /// Core of the generator.
     /// This background task picks pictures off the queue, prioritizes them based on a cost metric, and generates them.
     /// It sends updates back to the requester.
-    pub async fn run(self, mut command_receiver: UnboundedReceiver<(ParsedRequest, UnboundedSender<GenerationEvent>)>) {
+    pub async fn run(
+        self,
+        mut command_receiver: UnboundedReceiver<(ParsedRequest, UnboundedSender<GenerationEvent>)>,
+    ) {
         // Queue of pictures-to-be-generated.
         let mut queue: Vec<(ParsedRequest, UnboundedSender<GenerationEvent>)> = vec![];
         // Stream for the currently generating picture, if any.
@@ -665,7 +761,9 @@ impl ImageGeneratorModule {
         loop {
             if current_tx.is_none() {
                 // We're not generating anything right now, so we can pick something off the queue.
-                if let Some((request, tx)) = Self::highest_scoring(&mut queue, &previous_request.unwrap_or_default()) {
+                if let Some((request, tx)) =
+                    Self::highest_scoring(&mut queue, &previous_request.unwrap_or_default())
+                {
                     // We found something to generate.
                     current_gen = Box::pin(self.do_generate(request.clone()).await);
                     current_tx = Some(tx);
@@ -692,7 +790,7 @@ impl ImageGeneratorModule {
                         },
                     }
                 },
-                // New picture to generate. 
+                // New picture to generate.
                 command = command_receiver.next() => {
                     if let Some((request, mut tx)) = command {
                         let qsz = queue.len() + if current_tx.is_some() { 1 } else { 0 };
@@ -706,7 +804,11 @@ impl ImageGeneratorModule {
         }
     }
 
-    pub async fn generate(&self, mut request: UserRequest, is_private: bool) -> impl Stream<Item = GenerationEvent> + '_ {
+    pub async fn generate(
+        &self,
+        mut request: UserRequest,
+        is_private: bool,
+    ) -> impl Stream<Item = GenerationEvent> + '_ {
         let db_for_completion = self.0.read().await.db.clone();
         let (tx, rx) = unbounded();
         try_stream! {
@@ -749,7 +851,6 @@ impl ImageGeneratorModule {
     }
 }
 
-
 lazy_static! {
     pub static ref STYLES: Vec<(&'static str, &'static str)> = vec![
         ("Shōnen Anime", "Shōnen Anime, action-oriented, Akira Toriyama (Dragon Ball), youthful, vibrant, dynamic"),
@@ -786,11 +887,10 @@ pub fn choose_random_style() -> &'static str {
     style
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-        
+
     fn most_similar(model: &str) -> (f64, String) {
         let models = [
             "MeinaMix_v11",
@@ -812,7 +912,13 @@ mod tests {
 
     fn correct(model: &str, target: &str) {
         let (similarity, best_model) = most_similar(model);
-        assert!(similarity >= SIMILARITY_THRESHOLD, "model {} is too different from {}: {}", model, best_model, similarity);
+        assert!(
+            similarity >= SIMILARITY_THRESHOLD,
+            "model {} is too different from {}: {}",
+            model,
+            best_model,
+            similarity
+        );
         assert_eq!(best_model, target);
     }
 

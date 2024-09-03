@@ -6,7 +6,7 @@ use futures::{prelude::*, stream::FuturesUnordered};
 use generator::ImageGeneratorModule;
 use log::{error, info};
 
-use crate::{db::DatabaseModule, gpt::GPTPromptGeneratorModule};
+use crate::{db::DatabaseModule, gpt::PromptGeneratorModule};
 
 mod changelog;
 mod config;
@@ -22,7 +22,7 @@ mod utils;
 pub struct BotContext {
     pub config: BotConfigModule,
     pub db: DatabaseModule,
-    pub prompt_generator: GPTPromptGeneratorModule,
+    pub prompt_generator: PromptGeneratorModule,
     pub image_generator: ImageGeneratorModule,
 }
 
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
 
     // Start backends.
     let db = DatabaseModule::new(config.clone()).await?;
-    let prompt_generator = GPTPromptGeneratorModule::new(config.clone());
+    let prompt_generator = PromptGeneratorModule::new(config.clone());
     let image_generator =
         ImageGeneratorModule::new(db.clone(), config.clone(), prompt_generator.clone())?;
 

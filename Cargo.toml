@@ -13,42 +13,38 @@ async-stream = "0.3.5"
 base64 = "0.21.7"
 blake3 = "1.4.1"
 clap = { version = "4.3.19", features = ["derive"] }
+dotenv = "0.15.0"
 env_logger = "0.10.0"
 futures = "0.3.28"
 futures-time = "3.0.0"
-google-generative-ai-rs = { version = "0.3.2", features = ["beta"] }
 image = { version = "0.24.6", features = ["jpeg", "png"] }
 irc = "0.15.0"
 lazy_static = "1.4.0"
 log = "0.4.19"
 notify = "6.0.1"
 num = "0.4.1"
-openai-api-rs = "5.0.6"
 rand = "0.8.5"
 reqwest = { version = "0.11.18", default-features = false, features = [
-  "serde_json",
-  "json",
+    "serde_json",
+    "json",
 ] }
 rusqlite = { version = "0.29.0", features = ["bundled", "serde_json"] }
 serde = { version = "1.0.171", features = ["derive"] }
 serde_json = "1.0.103"
 serenity = { version = "0.11.6", default-features = false, features = [
-  "cache",
-  "client",
-  "http",
-  "reqwest",
-  "rustls_backend",
-  "gateway",
-  "builder",
-  "model",
-  "collector",
+    "cache",
+    "client",
+    "http",
+    "reqwest",
+    "rustls_backend",
+    "gateway",
+    "builder",
+    "model",
+    "collector",
 ] }
 strsim = "0.10.0"
 tempfile = "3.7.0"
-tokio = { version = "1.29.1", default-features = false, features = [
-  "macros",
-  "rt-multi-thread",
-] }
+tokio = { version = "1.29.1", default-features = false, features = ["macros", "process", "rt-multi-thread"] }
 tokio-retry = "0.3.0"
 tokio-stream = "0.1.14"
 tokio-tungstenite = "0.19.0"

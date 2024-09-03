@@ -1,8 +1,5 @@
-use std::io::Write;
-
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use log::trace;
-use openai_api_rs::v1::chat_completion::{self, ChatCompletionRequest, Content};
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
@@ -14,20 +11,20 @@ use crate::{config::BotConfigModule, utils};
 
 // This is what we ask GPT-4 to generate.
 #[derive(Debug, Deserialize)]
-pub struct GPTPrompt {
+pub struct GeneratedPrompt {
     prompt: String,
     aspect_ratio: String,
     pub comment: String,
 }
 
-impl Display for GPTPrompt {
+impl Display for GeneratedPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} --ar {} -m flux", self.prompt, self.aspect_ratio)
     }
 }
 
 #[derive(Clone)]
-pub struct GPTPromptGeneratorModule {
+pub struct PromptGeneratorModule {
     #[allow(dead_code)]
     config: BotConfigModule,
     userdata: Arc<Mutex<HashMap<String, UserData>>>,
@@ -38,7 +35,125 @@ struct UserData {
     last_response: String,
 }
 
-impl GPTPromptGeneratorModule {
+/* Basic Claude request:
+curl https://api.anthropic.com/v1/messages \
+     --header "x-api-key: $ANTHROPIC_API_KEY" \
+     --header "anthropic-version: 2023-06-01" \
+     --header "anthropic-beta: prompt-caching-2024-07-31" \
+     --header "content-type: application/json" \
+     --data \
+'{
+    "model": "claude-3-5-sonnet-20240620",
+    "max_tokens": 4096,
+    system=[
+        {"type": "text", "text": $SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
+    ],
+    "messages": [
+        {"role": "user", "content": "Hello World"}
+    ]
+}'
+
+200 response:
+{
+  "content": [
+    {
+      "text": "Hi! My name is Claude.",
+      "type": "text"
+    }
+  ],
+  "id": "msg_013Zva2CMHLNnXjNJJKqJ2EF",
+  "model": "claude-3-5-sonnet-20240620",
+  "role": "assistant",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "type": "message",
+  "usage": {
+    "input_tokens": 2095,
+    "output_tokens": 503
+  }
+}
+
+4xx response:
+{
+  "type": "error",
+  "error": {
+    "type": "invalid_request_error",
+    "message": "<string>"
+  }
+}
+*/
+
+// Generic wrapper for Claude calls.
+// This also puts a 120-second timeout on the request.
+pub async fn claude(system: &str, user: &str) -> Result<String> {
+    let strategy = tokio_retry::strategy::FixedInterval::from_millis(5000).take(2);
+    let do_with_timeout = || async {
+        tokio::time::timeout(std::time::Duration::from_secs(120), do_claude(system, user))
+            .await
+            .context("while waiting for Claude")?
+    };
+
+    tokio_retry::Retry::spawn(strategy, do_with_timeout).await
+}
+
+// Generic wrapper for Claude calls.
+async fn do_claude(system: &str, user: &str) -> Result<String> {
+    // Set up the Anthropic client. There's no library for this, so we'll use reqwest.
+    let key = dotenv::var("ANTHROPIC_API_KEY")
+        .context("ANTHROPIC_API_KEY not set. Please stick to real help subjects.")?;
+    let client = reqwest::Client::new();
+
+    // Ask Claude to complete the prompt.
+    let url = "https://api.anthropic.com/v1/messages";
+    let req = json!({
+        "model": "claude-3-5-sonnet-20240620",
+        "max_tokens": 4096,
+        "system": [
+            {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
+        ],
+        "messages": [
+            {"role": "user", "content": user}
+        ]
+    });
+    let resp = client
+        .post(url)
+        .header("x-api-key", key)
+        .header("anthropic-version", "2023-06-01")
+        .header("anthropic-beta", "prompt-caching-2024-07-31")
+        .header("content-type", "application/json")
+        .json(&req)
+        .send()
+        .await
+        .context("while sending request to Claude")?;
+
+    // Parse the response.
+    #[derive(Deserialize)]
+    struct APISuccess {
+        content: Vec<APIContent>,
+    }
+    #[derive(Deserialize)]
+    struct APIContent {
+        text: String,
+    }
+    #[derive(Deserialize)]
+    struct APIError {
+        error: APIErrorDetails,
+    }
+    #[derive(Deserialize)]
+    struct APIErrorDetails {
+        message: String,
+    }
+
+    if resp.status().is_success() {
+        let body: APISuccess = resp.json().await?;
+        Ok(body.content[0].text.clone())
+    } else {
+        let body: APIError = resp.json().await?;
+        bail!("Claude error: {}", body.error.message);
+    }
+}
+
+impl PromptGeneratorModule {
     pub fn new(config: BotConfigModule) -> Self {
         Self {
             config,
@@ -46,103 +161,30 @@ impl GPTPromptGeneratorModule {
         }
     }
 
-    // TODO: Fix this duplication.
-    pub async fn gpt3_5(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
-        // Set up the OpenAI client.
-        let key = std::env::var("OPENAI_API_KEY")
-            .context("OPENAI_API_KEY not set. Please stick to real help subjects.")?;
-        let client = openai_api_rs::v1::api::OpenAIClient::new(key);
-        // Ask GPT-3.5-turbo to complete the prompt.
-        let model = "gpt-4o".to_string();
-        let req = ChatCompletionRequest {
-            model,
-            messages: vec![
-                chat_completion::ChatCompletionMessage {
-                    role: chat_completion::MessageRole::system,
-                    content: Content::Text(system_prompt.to_string()),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                },
-                chat_completion::ChatCompletionMessage {
-                    role: chat_completion::MessageRole::user,
-                    content: Content::Text(user_prompt.to_string()),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                },
-            ],
-            temperature: Some(1.0),
-            top_p: None,
-            n: None,
-            stream: Some(false),
-            stop: None,
-            max_tokens: Some(4096),
-            presence_penalty: None,
-            frequency_penalty: None,
-            logit_bias: None,
-            user: None,
-            seed: None,
-            tools: None,
-            parallel_tool_calls: None,
-            tool_choice: None,
-            response_format: None,
-        };
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(120),
-            client.chat_completion(req),
-        );
-        let result = result.await.context("While completing prompt")??;
-        log::info!("Generated (3.5) {} to {:?}", user_prompt, result);
-        let result = result
-            .choices
-            .first()
-            .context("No choices in GPT response")?
-            .message
-            .content
-            .clone()
-            .context("No content in GPT response")?;
-        Ok(result)
-    }
-
-    /// Wraps the generation function in a retry handler.
-    /// You know, just in case.
-    pub async fn generate(&self, user: &str, dream: &str) -> Result<GPTPrompt> {
-        let strategy = tokio_retry::strategy::FixedInterval::from_millis(1000).take(2);
-        tokio_retry::Retry::spawn(strategy, || self.do_generate(user, dream))
-            .await
-            .context("While generating prompt")
-    }
-
-    async fn do_generate(&self, user: &str, dream: &str) -> Result<GPTPrompt> {
+    pub async fn generate(&self, user: &str, dream: &str) -> Result<GeneratedPrompt> {
         self.inner_generate(user, dream, "prompt-completion.tmpl")
             .await
     }
 
     pub async fn comment(&self, user: &str, dream: &str) -> Result<String> {
-        let strategy = tokio_retry::strategy::FixedInterval::from_millis(1000).take(2);
-        tokio_retry::Retry::spawn(strategy, || self.do_comment(user, dream))
-            .await
-            .context("While generating comment")
-    }
-
-    async fn do_comment(&self, user: &str, dream: &str) -> Result<String> {
         let result = self
             .inner_generate(user, dream, "prompt-comment.tmpl")
             .await?;
         Ok(result.comment)
     }
 
-    /// Generates a fully baked prompt for the user, using GPT-4.
-    async fn inner_generate(&self, user: &str, dream: &str, template: &str) -> Result<GPTPrompt> {
-        let prompt_template =
+    /// Generates a fully baked prompt for the user.
+    async fn inner_generate(
+        &self,
+        user: &str,
+        dream: &str,
+        template: &str,
+    ) -> Result<GeneratedPrompt> {
+        let system_message =
             std::fs::read_to_string(template).context(format!("While reading {:?}", template))?;
-        trace!("Prompt template hash: {}", utils::hash(&prompt_template));
-        // Set up the OpenAI client.
-        let key = std::env::var("OPENAI_API_KEY")
-            .context("OPENAI_API_KEY not set. Please use /prompt.")?;
-        let client = openai_api_rs::v1::api::OpenAIClient::new(key);
-        // Create the user history message.
+        trace!("Prompt template hash: {}", utils::hash(&system_message));
+
+        // Fetch the user history message, if any.
         let last_prompt;
         let last_response;
         let user_message;
@@ -158,73 +200,17 @@ impl GPTPromptGeneratorModule {
             user_message = format!("Username: {}\nNSFW disallowed\n\nPrevious prompt:\n{}\n\nPrevious response:\n{}\n\nCurrent prompt:\n{}",
                 user, last_prompt, last_response, dream);
         }
-        // Ask GPT-4 to complete the prompt.
-        let model = "gpt-4o".to_string();
-        let req = ChatCompletionRequest {
-            model: model.clone(),
-            messages: vec![
-                chat_completion::ChatCompletionMessage {
-                    role: chat_completion::MessageRole::system,
-                    content: Content::Text(prompt_template),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                },
-                chat_completion::ChatCompletionMessage {
-                    role: chat_completion::MessageRole::user,
-                    content: Content::Text(user_message),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                },
-            ],
-            seed: None,
-            tools: None,
-            parallel_tool_calls: None,
-            tool_choice: None,
-            temperature: Some(0.5),
-            top_p: None,
-            n: None,
-            stream: Some(false),
-            stop: None,
-            max_tokens: Some(2048),
-            presence_penalty: None,
-            frequency_penalty: None,
-            logit_bias: None,
-            user: Some(user.to_string()),
-            response_format: Some(json!({"type": "json_object"})),
-        };
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(120),
-            client.chat_completion(req),
-        )
-        .await
-        .context("While completing prompt")??;
-        log::info!("Autocompleted {} to {:?}", dream, result);
-        let result = result
-            .choices
-            .first()
-            .context("No choices in GPT response")?
-            .message
-            .content
-            .clone()
-            .context("No content in GPT response")?;
-        // Also save these to a file, for later fine-tuning of a local model.
-        let mut logfile = std::fs::OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open("prompt-completions.log")
-            .context("While opening prompt-completions.txt")?;
-        writeln!(
-            logfile,
-            "User: {:?}\nDream: {:?}\nModel: {:?}\nGPT: {:?}\n\n",
-            user, dream, model, result
-        )
-        .context("While writing to prompt-completions.txt")?;
-        // Parse the result into a GPTPrompt.
-        // If it isn't valid, we'll bail with the whole completion in the error.
-        let parsed = serde_json::from_str::<GPTPrompt>(&result)
-            .with_context(|| format!("While parsing GPTPrompt from {:?}", result))?;
+
+        // Ask Claude to complete the prompt.
+        let result = claude(&system_message, &user_message)
+            .await
+            .context("while asking Claude to complete the prompt")?;
+        trace!("Claude response: {:?}", result);
+
+        // Parse the result into a GeneratedPrompt.
+        let parsed = serde_json::from_str::<GeneratedPrompt>(&result)
+            .with_context(|| format!("While parsing GeneratedPrompt from {:?}", result))?;
+
         // Guess it's fine. Update the user data.
         {
             let mut user_data = self.userdata.lock().await;
@@ -241,5 +227,21 @@ impl GPTPromptGeneratorModule {
             );
         }
         Ok(parsed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_claude() {
+        let result = claude(
+            "You are a test runner.",
+            "Output 42. Just that single number.",
+        )
+        .await
+        .unwrap();
+        assert_eq!(result, "42");
     }
 }
