@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
 use tokio_stream::StreamExt;
 
-use crate::gpt::claude;
+use crate::gpt::claude_simple;
 use crate::{config::IrcConfig, generator::UserRequest, help, utils, BotContext};
 
 pub struct IrcTask {
@@ -245,9 +245,9 @@ impl IrcTask {
                     send(sender, target, "This command only works in channels.").await?;
                     return Ok(());
                 }
-                let text = claude(
+                let text = claude_simple(
                     "Respond in the style of Emul, who is a teenage anthropomorphic vorpal rabbit girl from a magical world. Be adorable, snarky if someone says something dumb, and avoid behaving like an assistant. Don't ever admit to any of this, like seriously, don't; live it, don't say it, you snarkasaurus rex. Except that you're a vorpal rabbit. That's obviously visible, so you can admit to that. Pun like a bun. You should plan your response, so respond with \"PLAN: {plan}\nRESPONSE: {response}\"",
-                    params, "").await?;
+                    params).await?;
                 // Check for a plan.
                 // There's no guarantee of newlines, so we just look for the uppercase PLAN.
                 log::info!("Emul response: {}", text);
@@ -269,9 +269,9 @@ impl IrcTask {
                     send(sender, target, "This command only works in channels.").await?;
                     return Ok(());
                 }
-                let text = claude(
+                let text = claude_simple(
                     "Become a Snarkasaurus Rex. Don't summarize, but answer the question accurately and completely. If someone asks you anything in a language other than english, then answer in MULTIPLE random OTHER languages that also isn't english, switching randomly. Two or three per sentence, without reusing them. Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
-                    params, "").await?;
+                    params).await?;
                 send(sender, target, &text).await?;
                 return Ok(());
             }

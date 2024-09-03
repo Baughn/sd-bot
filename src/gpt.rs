@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use log::{info, trace};
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
@@ -10,7 +11,7 @@ use tokio::sync::Mutex;
 use crate::{config::BotConfigModule, utils};
 
 // This is what we ask GPT-4 to generate.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GeneratedPrompt {
     prompt: String,
     aspect_ratio: String,
@@ -85,12 +86,16 @@ curl https://api.anthropic.com/v1/messages \
 
 // Generic wrapper for Claude calls.
 // This also puts a 120-second timeout on the request.
-pub async fn claude(system: &str, user: &str, prefill: &str) -> Result<String> {
+async fn claude<T: DeserializeOwned + Clone>(
+    system: &str,
+    user: &str,
+    schema: Option<&serde_json::Value>,
+) -> Result<ClaudeResult<T>> {
     let strategy = tokio_retry::strategy::FixedInterval::from_millis(5000).take(2);
     let do_with_timeout = || async {
         tokio::time::timeout(
             std::time::Duration::from_secs(120),
-            do_claude(system, user, prefill),
+            do_claude::<T>(system, user, schema),
         )
         .await
         .context("while waiting for Claude")?
@@ -99,8 +104,38 @@ pub async fn claude(system: &str, user: &str, prefill: &str) -> Result<String> {
     tokio_retry::Retry::spawn(strategy, do_with_timeout).await
 }
 
+pub async fn claude_simple(system: &str, user: &str) -> Result<String> {
+    let result = claude::<()>(system, user, None).await?;
+    match result {
+        ClaudeResult::NoSchema(msg) => Ok(msg),
+        ClaudeResult::Schema(_) => bail!("Unexpected schema response from Claude"),
+    }
+}
+
+pub async fn claude_schema<T: DeserializeOwned + Clone>(
+    system: &str,
+    user: &str,
+    schema: &serde_json::Value,
+) -> Result<T> {
+    let result = claude::<T>(system, user, Some(schema)).await?;
+    match result {
+        ClaudeResult::NoSchema(msg) => bail!("Unexpected non-schema response from Claude: {}", msg),
+        ClaudeResult::Schema(x) => Ok(x),
+    }
+}
+
+#[derive(Debug)]
+enum ClaudeResult<T> {
+    NoSchema(String),
+    Schema(T),
+}
+
 // Generic wrapper for Claude calls.
-async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
+async fn do_claude<T: DeserializeOwned + Clone>(
+    system: &str,
+    user: &str,
+    schema: Option<&serde_json::Value>,
+) -> Result<ClaudeResult<T>> {
     // Set up the Anthropic client. There's no library for this, so we'll use reqwest.
     let key = dotenv::var("ANTHROPIC_API_KEY")
         .context("ANTHROPIC_API_KEY not set. Please stick to real help subjects.")?;
@@ -108,17 +143,31 @@ async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
 
     // Ask Claude to complete the prompt.
     let url = "https://api.anthropic.com/v1/messages";
-    let req = json!({
-        "model": "claude-3-5-sonnet-20240620",
-        "max_tokens": 4096,
-        "system": [
-            {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
-        ],
-        "messages": [
-            {"role": "user", "content": user},
-            {"role": "assistant", "content": prefill},
-        ]
-    });
+    let req = if let Some(schema) = schema {
+        json!({
+            "model": "claude-3-5-sonnet-20240620",
+            "max_tokens": 4096,
+            "tools": [schema],
+            "tool_choice": {"type": "tool", "name": schema["name"]},
+            "system": [
+                {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
+            ],
+            "messages": [
+                {"role": "user", "content": user},
+            ]
+        })
+    } else {
+        json!({
+            "model": "claude-3-5-sonnet-20240620",
+            "max_tokens": 4096,
+            "system": [
+                {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
+            ],
+            "messages": [
+                {"role": "user", "content": user},
+            ]
+        })
+    };
     let resp = client
         .post(url)
         .header("x-api-key", key)
@@ -132,13 +181,16 @@ async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
 
     // Parse the response.
     #[derive(Deserialize)]
-    struct APISuccess {
-        content: Vec<APIContent>,
+    struct APISuccess<T> {
+        content: Vec<APIContent<T>>,
         usage: APIUsage,
     }
     #[derive(Deserialize)]
-    struct APIContent {
-        text: String,
+    struct APIContent<T> {
+        #[serde(rename = "type")]
+        content_type: String,
+        text: Option<String>,
+        input: Option<T>,
     }
     #[derive(Deserialize, Debug)]
     struct APIUsage {
@@ -157,7 +209,7 @@ async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
     }
 
     if resp.status().is_success() {
-        let body: APISuccess = resp.json().await?;
+        let body: APISuccess<T> = resp.json().await?;
         info!(
             "Claude usage (in/out/cwr/crd): {}, {}, {}, {}",
             body.usage.input_tokens,
@@ -165,11 +217,17 @@ async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
             body.usage.cache_creation_input_tokens,
             body.usage.cache_read_input_tokens
         );
-        let text = &body.content[0].text;
-        if prefill.is_empty() {
-            Ok(text.to_string())
+        if schema.is_some() {
+            if let Some(input) = &body.content[0].input {
+                Ok(ClaudeResult::Schema(input.clone()))
+            } else {
+                bail!("Claude response was empty");
+            }
         } else {
-            Ok(format!("{}{}", prefill, text))
+            let text = &body.content[0].text.as_ref();
+            Ok(ClaudeResult::NoSchema(
+                text.context("Claude response was empty")?.clone(),
+            ))
         }
     } else {
         let body: APIError = resp.json().await?;
@@ -225,15 +283,35 @@ impl PromptGeneratorModule {
                 user, last_prompt, last_response, dream);
         }
 
+        // Define the 'tool' schema.
+        let schema = json!({
+            "name": "record_prompt_completion",
+            "description": "Record the prompt completion and comment using well-formed JSON.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "The prompt that was invented."
+                    },
+                    "comment": {
+                        "type": "string",
+                        "description": "The comment on the users's request."
+                    },
+                    "aspect_ratio": {
+                        "type": "string",
+                        "description": "The aspect ratio of the image."
+                    }
+                },
+                "required": ["prompt", "comment", "aspect_ratio"]
+            },
+        });
+
         // Ask Claude to complete the prompt.
-        let result = claude(&system_message, &user_message, "{\"prompt\": \"")
+        let parsed = claude_schema::<GeneratedPrompt>(&system_message, &user_message, &schema)
             .await
             .context("while asking Claude to complete the prompt")?;
-        trace!("Claude response: {:?}", result);
-
-        // Parse the result into a GeneratedPrompt.
-        let parsed = serde_json::from_str::<GeneratedPrompt>(&result)
-            .with_context(|| format!("While parsing GeneratedPrompt from {:?}", result))?;
+        trace!("Claude response: {:?}", parsed);
 
         // Guess it's fine. Update the user data.
         {
@@ -260,13 +338,43 @@ mod tests {
 
     #[tokio::test]
     async fn test_claude() {
-        let result = claude(
+        let result = claude_simple(
             "You are a test runner.",
             "Output 42. Just that single number.",
-            "",
         )
         .await
         .unwrap();
         assert_eq!(result, "42");
+    }
+
+    #[tokio::test]
+    async fn test_with_schema() {
+        #[derive(Deserialize, Clone)]
+        struct TestSchema {
+            number: String,
+        }
+
+        let schema = json!({
+            "name": "record_prompt_completion",
+            "description": "Record the number using well-formed json.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "number": {
+                        "type": "string",
+                        "description": "The number."
+                    }
+                },
+                "required": ["number"]
+            },
+        });
+        let result = claude_schema::<TestSchema>(
+            "You are a test runner.",
+            "Output 42. Just that single number.",
+            &schema,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.number, "42");
     }
 }
