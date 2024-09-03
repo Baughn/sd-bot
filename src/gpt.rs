@@ -165,7 +165,12 @@ async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
             body.usage.cache_creation_input_tokens,
             body.usage.cache_read_input_tokens
         );
-        Ok(body.content[0].text.clone())
+        let text = &body.content[0].text;
+        if prefill.is_empty() {
+            Ok(text.to_string())
+        } else {
+            Ok(format!("{}{}", prefill, text))
+        }
     } else {
         let body: APIError = resp.json().await?;
         bail!("Claude error: {}", body.error.message);
