@@ -383,24 +383,12 @@ impl Handler {
                     // - NxM rows of upscale buttons (up to 4x4).
                     let text = format_message(&status_data);
                     let image_url = urls[0].clone();
-                    let mut description = if let Some(enhanced) = &status_data.enhanced {
-                        enhanced
-                    } else {
-                        &status_data.prompt
-                    }
-                    .to_string();
-                    description.truncate(3950);
 
                     statusbox
                         .channel_id
                         .send_message(&ctx.http, |message| {
                             message
                                 .add_embed(|e| e.image(&image_url))
-                                .add_embed(|e| {
-                                    e.color((0x42, 0x87, 0xf5)).title("E").description(format!(
-                                        "[(i)]({image_url} \"{description}\")"
-                                    ))
-                                })
                                 .content(text)
                                 .components(|c| {
                                     let mut c = c.add_action_row(self.action_buttons.clone());
