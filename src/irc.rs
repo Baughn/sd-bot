@@ -366,10 +366,11 @@ impl IrcTask {
                     }
                     crate::generator::GenerationEvent::GPTCompleted(req) => {
                         if req.dream.is_some() {
+                            let text = req.raw.split("\n\n").next().unwrap_or_default();
                             send(
                                 sender,
                                 target,
-                                &format!("{}: Dreaming about `{}`", nick, req.raw),
+                                &format!("{}: Dreaming about `{}`", nick, text),
                             )
                             .await?;
                         }
