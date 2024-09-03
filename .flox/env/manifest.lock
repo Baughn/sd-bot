@@ -9,6 +9,9 @@
       "mold": {
         "pkg-path": "mold"
       },
+      "openssh": {
+        "pkg-path": "openssh"
+      },
       "openssl": {
         "pkg-path": "openssl"
       },
@@ -263,6 +266,122 @@
       ],
       "outputs": {
         "out": "/nix/store/wzgzyahp4dn7jg84h0k5fg1qqrdc0lj5-mold-2.33.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/my437z1f2ra4qqhwkp27zmskwqp19mq3-openssh-9.8p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "name": "openssh-9.8p1",
+      "pname": "openssh",
+      "rev": "12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "rev_count": 674318,
+      "rev_date": "2024-08-31T11:19:22Z",
+      "scrape_date": "2024-09-02T05:23:47Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.8p1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/a1n1r7zpa0j75cmm8gwi3gjdbmbc54x6-openssh-9.8p1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/0l2h7yx28ja5bkw80gfhrz0183p6fsja-openssh-9.8p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "name": "openssh-9.8p1",
+      "pname": "openssh",
+      "rev": "12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "rev_count": 674318,
+      "rev_date": "2024-08-31T11:19:22Z",
+      "scrape_date": "2024-09-02T05:23:47Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.8p1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/f9cvrmys31sfgh2yyn7m1pya2ji8nhh5-openssh-9.8p1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/sx8h6sfn9lh0qzq3hdmlm5b51d3fflvi-openssh-9.8p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "name": "openssh-9.8p1",
+      "pname": "openssh",
+      "rev": "12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "rev_count": 674318,
+      "rev_date": "2024-08-31T11:19:22Z",
+      "scrape_date": "2024-09-02T05:23:47Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.8p1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/cklk7mn6nvjwh1z2pldmdr5qramcbkaz-openssh-9.8p1"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "openssh",
+      "broken": false,
+      "derivation": "/nix/store/sxj4vi4bl68avpx1b8vx65042kjhgmwx-openssh-9.8p1.drv",
+      "description": "Implementation of the SSH protocol",
+      "install_id": "openssh",
+      "license": "BSD-2-Clause",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "name": "openssh-9.8p1",
+      "pname": "openssh",
+      "rev": "12228ff1752d7b7624a54e9c1af4b222b3c1073b",
+      "rev_count": 674318,
+      "rev_date": "2024-08-31T11:19:22Z",
+      "scrape_date": "2024-09-02T05:23:47Z",
+      "stabilities": [
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "9.8p1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/il9i2j2bhc4j56gn0njclghw48qj85ar-openssh-9.8p1"
       },
       "system": "x86_64-linux",
       "group": "toplevel",

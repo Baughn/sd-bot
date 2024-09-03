@@ -13,6 +13,7 @@ rustc.pkg-path = "rustc"
 pkg-config.pkg-path = "pkg-config"
 openssl.pkg-path = "openssl"
 mold.pkg-path = "mold"
+openssh.pkg-path = "openssh"
 # hello.pkg-path = "hello"
 # nodejs = { version = "^18.4.2", pkg-path = "nodejs_18" }
 
