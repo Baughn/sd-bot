@@ -1,3 +1,4 @@
+#![warn(unused_extern_crates)]
 use anyhow::{bail, Context, Result};
 
 use clap::Parser;

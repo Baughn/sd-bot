@@ -85,19 +85,22 @@ curl https://api.anthropic.com/v1/messages \
 
 // Generic wrapper for Claude calls.
 // This also puts a 120-second timeout on the request.
-pub async fn claude(system: &str, user: &str) -> Result<String> {
+pub async fn claude(system: &str, user: &str, prefill: &str) -> Result<String> {
     let strategy = tokio_retry::strategy::FixedInterval::from_millis(5000).take(2);
     let do_with_timeout = || async {
-        tokio::time::timeout(std::time::Duration::from_secs(120), do_claude(system, user))
-            .await
-            .context("while waiting for Claude")?
+        tokio::time::timeout(
+            std::time::Duration::from_secs(120),
+            do_claude(system, user, prefill),
+        )
+        .await
+        .context("while waiting for Claude")?
     };
 
     tokio_retry::Retry::spawn(strategy, do_with_timeout).await
 }
 
 // Generic wrapper for Claude calls.
-async fn do_claude(system: &str, user: &str) -> Result<String> {
+async fn do_claude(system: &str, user: &str, prefill: &str) -> Result<String> {
     // Set up the Anthropic client. There's no library for this, so we'll use reqwest.
     let key = dotenv::var("ANTHROPIC_API_KEY")
         .context("ANTHROPIC_API_KEY not set. Please stick to real help subjects.")?;
@@ -112,7 +115,8 @@ async fn do_claude(system: &str, user: &str) -> Result<String> {
             {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
         ],
         "messages": [
-            {"role": "user", "content": user}
+            {"role": "user", "content": user},
+            {"role": "assistant", "content": prefill},
         ]
     });
     let resp = client
@@ -217,7 +221,7 @@ impl PromptGeneratorModule {
         }
 
         // Ask Claude to complete the prompt.
-        let result = claude(&system_message, &user_message)
+        let result = claude(&system_message, &user_message, "{\"prompt\": \"")
             .await
             .context("while asking Claude to complete the prompt")?;
         trace!("Claude response: {:?}", result);
@@ -254,6 +258,7 @@ mod tests {
         let result = claude(
             "You are a test runner.",
             "Output 42. Just that single number.",
+            "",
         )
         .await
         .unwrap();
