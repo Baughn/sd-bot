@@ -151,8 +151,15 @@ pub async fn upload_images(
 }
 
 /// Clamps string length to a maximum limit.
+/// It ends at paragraph bounds, if it finds one before.
 pub fn clamp_string(text: &str, limit: usize) -> &str {
-    break_line(text, limit).0
+    let maximum = break_line(text, limit).0;
+    let paragraph = maximum.find("\n\n");
+    if let Some(paragraph) = paragraph {
+        &maximum[..paragraph]
+    } else {
+        maximum
+    }
 }
 
 /// Breaks a string into two halves, with the first half being at most `length_limit` bytes long.
