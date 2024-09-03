@@ -232,10 +232,14 @@ impl Handler {
                             c.comment.unwrap_or_default(),
                         );
                     }
+                    // It still might be too long.
+                    // If it is, we'll just truncate it.
+                    let mut text = status_text.join("\n");
+                    if text.len() > 2000 {
+                        text = utils::clamp_string(&text, 1990).to_string();
+                    }
                     statusbox
-                        .edit(&ctx.http, |message| {
-                            message.content(&status_text.join("\n"))
-                        })
+                        .edit(&ctx.http, |message| message.content(&text))
                         .await?;
                 }
                 GenerationEvent::Parsed(_) => (
