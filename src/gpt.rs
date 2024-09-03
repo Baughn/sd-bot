@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use log::trace;
+use log::{info, trace};
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
@@ -130,10 +130,18 @@ async fn do_claude(system: &str, user: &str) -> Result<String> {
     #[derive(Deserialize)]
     struct APISuccess {
         content: Vec<APIContent>,
+        usage: APIUsage,
     }
     #[derive(Deserialize)]
     struct APIContent {
         text: String,
+    }
+    #[derive(Deserialize, Debug)]
+    struct APIUsage {
+        input_tokens: u32,
+        output_tokens: u32,
+        cache_creation_input_tokens: u32,
+        cache_read_input_tokens: u32,
     }
     #[derive(Deserialize)]
     struct APIError {
@@ -146,6 +154,13 @@ async fn do_claude(system: &str, user: &str) -> Result<String> {
 
     if resp.status().is_success() {
         let body: APISuccess = resp.json().await?;
+        info!(
+            "Claude usage (in/out/cwr/crd): {}, {}, {}, {}",
+            body.usage.input_tokens,
+            body.usage.output_tokens,
+            body.usage.cache_creation_input_tokens,
+            body.usage.cache_read_input_tokens
+        );
         Ok(body.content[0].text.clone())
     } else {
         let body: APIError = resp.json().await?;
