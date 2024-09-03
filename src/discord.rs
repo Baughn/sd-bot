@@ -345,7 +345,7 @@ impl Handler {
             match event {
                 GenerationEvent::GPTCompleted(c) => {
                     if c.dream.is_some() {
-                        c.dream.clone_into(&mut status_data.enhanced);
+                        status_data.enhanced = Some(c.raw.clone());
                     }
                     c.comment.clone_into(&mut status_data.comment);
                     update_statusbox(ctx, &status_data, &mut statusbox).await?;
@@ -386,25 +386,28 @@ impl Handler {
                     statusbox
                         .channel_id
                         .send_message(&ctx.http, |message| {
-                            message.content(text).components(|c| {
-                                let mut c = c.add_action_row(self.action_buttons.clone());
-                                // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
-                                for y in 0..gallery_geometry.1 {
-                                    let mut row = CreateActionRow::default();
-                                    for x in 0..gallery_geometry.0 {
-                                        let index = y * gallery_geometry.0 + x + 1;
-                                        row = row
-                                            .create_button(|b| {
-                                                b.style(ButtonStyle::Primary)
-                                                    .label(format!("U{}", index))
-                                                    .custom_id(format!("upscale.{}", index))
-                                            })
-                                            .clone();
+                            message
+                                .add_embed(|e| e.image(urls[0].clone()))
+                                .content(text)
+                                .components(|c| {
+                                    let mut c = c.add_action_row(self.action_buttons.clone());
+                                    // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
+                                    for y in 0..gallery_geometry.1 {
+                                        let mut row = CreateActionRow::default();
+                                        for x in 0..gallery_geometry.0 {
+                                            let index = y * gallery_geometry.0 + x + 1;
+                                            row = row
+                                                .create_button(|b| {
+                                                    b.style(ButtonStyle::Primary)
+                                                        .label(format!("U{}", index))
+                                                        .custom_id(format!("upscale.{}", index))
+                                                })
+                                                .clone();
+                                        }
+                                        c = c.add_action_row(row);
                                     }
-                                    c = c.add_action_row(row);
-                                }
-                                c
-                            })
+                                    c
+                                })
                         })
                         .await
                         .context("Posting pictures")?;
