@@ -35,6 +35,7 @@ struct CommandLineFlags {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv::dotenv().context("failed to load .env file")?;
     env_logger::init();
     let args = CommandLineFlags::parse();
 

@@ -54,6 +54,115 @@ impl DiscordTask {
     }
 }
 
+struct DiscordMessageData {
+    /// Accessible from the start:
+    // The user who requested the image.
+    pub user: String,
+    pub mention: String,
+    // The prompt that was used to generate the image.
+    pub prompt: String,
+    // True for /dream, false for /prompt.
+    pub is_dream: bool,
+    /// Accessible if there is a changelog entry:
+    pub changelog: Option<String>,
+    /// Accessible after LLM enhancement:
+    pub enhanced: Option<String>,
+    pub comment: Option<String>,
+    /// Accessible *while* generating:
+    pub queue_pos: Option<u32>,
+    pub gen_pct: Option<u32>,
+    /// Accessible after the image is generated:
+    pub gallery_url: Option<String>,
+    /// Accessible if there is an error:
+    pub error: Option<String>,
+}
+
+// Discord message formatter.
+// This helper function formats image-gen messages in a size-aware way.
+// It shrinks the message segments in priority order:
+// - Mention: Always shown.
+// - Changelog entry (if present)
+// - Error message (if present)
+// - Gallery link for the image server.
+// - Original prompt
+// - 1st paragraph of enhanced prompt
+// - The entire comment.
+// - The rest of the enhanced prompt.
+fn format_message(data: &DiscordMessageData) -> String {
+    let mut message = format!("{}\n", data.mention);
+    if let Some(changelog) = &data.changelog {
+        message.push_str(&format!("\n**{}**\n", changelog));
+    }
+    if let Some(error) = &data.error {
+        message.push_str(&format!("Error: {error}\n"));
+    }
+    if let Some(url) = &data.gallery_url {
+        message.push_str(&format!("Gallery: {url}\n"));
+    }
+    message.push_str(&format!("Prompt: {}\n\n", data.prompt));
+    // So much for the easy stuff. Let's see how much space is left.
+    let mut remaining = 1950 - message.len();
+    let mut enhanced =
+        utils::break_paragraphs(data.enhanced.as_deref().unwrap_or_default()).into_iter();
+    let comment = utils::break_paragraphs(data.comment.as_deref().unwrap_or_default()).into_iter();
+    let mut accepted_enhanced: Vec<String> = Vec::new();
+    let mut accepted_comment: Vec<String> = Vec::new();
+    // Add the first paragraph of the enhanced prompt.
+    if let Some(first) = enhanced.next() {
+        if first.len() <= remaining {
+            accepted_enhanced.push("Enhanced:\n".into());
+            remaining -= accepted_enhanced.last().unwrap().len();
+            remaining -= first.len();
+            accepted_enhanced.push(first);
+        }
+    }
+    // Add as many comment paragraphs as possible.
+    // If there is no enhanced prompt, skip this.
+    for paragraph in comment {
+        if paragraph.len() <= remaining {
+            remaining -= paragraph.len();
+            accepted_comment.push(paragraph);
+        } else {
+            break;
+        }
+    }
+    // Add the rest of the enhanced prompt, as much as possible.
+    for paragraph in enhanced {
+        if paragraph.len() <= remaining {
+            remaining -= paragraph.len();
+            accepted_enhanced.push(paragraph);
+        } else {
+            break;
+        }
+    }
+
+    // Wasn't that nice? Now we can add the accepted parts to the message.
+    if !accepted_enhanced.is_empty() {
+        message.push_str(&accepted_enhanced.join("\n"));
+        message.push_str("\n\n");
+    }
+    if !accepted_comment.is_empty() {
+        message.push_str(&accepted_comment.join("\n"));
+    }
+
+    // And the queue position / generation percentage / ETA.
+    if let Some(queue_pos) = data.queue_pos {
+        message.push_str(&format!("\n\nQueued at position #{queue_pos}"));
+    }
+    if let Some(gen_pct) = data.gen_pct {
+        message.push_str(&format!("\n\nGeneration progress: {gen_pct}%"));
+    }
+
+    // Do a final check for the message length... just in case.
+    if message.len() > 2000 {
+        log::error!("Message too long: {}", message.len());
+        message.truncate(2000);
+    }
+
+    message
+}
+
+/// Handler for Discord events.
 impl Handler {
     async fn handle_command(
         &self,
@@ -189,149 +298,95 @@ impl Handler {
                 .generate(request.clone(), is_private)
                 .await,
         );
+
+        // We'll be repeatedly updating the statusbox with the latest progress.
+        let mut status_data = DiscordMessageData {
+            user: request.user.clone(),
+            mention: mention_user.to_string(),
+            prompt: if let Some(dream) = request.dream.as_ref() {
+                dream.clone()
+            } else {
+                request.raw.clone()
+            },
+            is_dream: request.dream.is_some(),
+            enhanced: None,
+            comment: None,
+            gallery_url: None,
+            error: None,
+            changelog: None,
+            queue_pos: None,
+            gen_pct: None,
+        };
+
         // When generating, we first create an interaction response in which we
         // display event data such as queue #s.
         // Once the generation is complete, we send a followup message with the
         // results.
-        let mut status_text = if let Some(dream) = request.dream {
-            vec![format!("Dreaming based on `{}`", dream)]
-        } else {
-            let raw = utils::clamp_string(&request.raw, 1600);
-            vec![format!("Dreaming about `{}`", raw)]
-        };
 
         // However, we might want to stick a changelog entry in there.
-        if let Some(changelog_entry) =
-            changelog::get_new_changelog_entry(&self.context, &request.user).await?
-        {
-            status_text.push(format!("\n{changelog_entry}"));
+        status_data.changelog =
+            changelog::get_new_changelog_entry(&self.context, &request.user).await?;
+
+        async fn update_statusbox(
+            ctx: &Context,
+            data: &DiscordMessageData,
+            boxx: &mut Message,
+        ) -> Result<()> {
+            let status_text = format_message(data);
+            boxx.edit(&ctx.http, |message| message.content(&status_text))
+                .await
+                .context("Updating statusbox")
         }
 
-        statusbox
-            .edit(&ctx.http, |message| {
-                message.content(&status_text.join("\n"))
-            })
-            .await
-            .context("Creating initial response")?;
+        update_statusbox(ctx, &status_data, &mut statusbox).await?;
 
         while let Some(event) = stream.next().await {
             trace!("Event: {:?}", event);
             match event {
                 GenerationEvent::GPTCompleted(c) => {
-                    if let Some(dream) = c.dream {
-                        status_text[0] = format!(
-                            "Dreaming about `{}`\n(Displayed prompt is cropped)\n\nBased on `{}`\n\n{}\n",
-                            utils::clamp_string(&c.raw, 900),
-                            utils::clamp_string(&dream, 900),
-                            c.comment.unwrap_or_default(),
-                        );
-                    } else {
-                        status_text[0] = format!(
-                            "Dreaming about `{}`\n\n{}\n",
-                            utils::clamp_string(&c.raw, 900),
-                            c.comment.unwrap_or_default(),
-                        );
+                    if c.dream.is_some() {
+                        c.dream.clone_into(&mut status_data.enhanced);
                     }
-                    // It still might be too long.
-                    // If it is, we'll just truncate it.
-                    let mut text = status_text.join("\n");
-                    if text.len() > 2000 {
-                        text = utils::clamp_string(&text, 1990).to_string();
-                    }
-                    statusbox
-                        .edit(&ctx.http, |message| message.content(&text))
-                        .await?;
+                    c.comment.clone_into(&mut status_data.comment);
+                    update_statusbox(ctx, &status_data, &mut statusbox).await?;
                 }
                 GenerationEvent::Parsed(_) => (
                     // TODO: Implement this.
                 ),
                 GenerationEvent::Queued(n) => {
                     if n > 0 {
-                        status_text.insert(1, format!("Queued at position {}", n));
-                        statusbox
-                            .edit(&ctx.http, |message| {
-                                message.content(&status_text.join("\n"))
-                            })
-                            .await?;
+                        status_data.queue_pos = Some(n);
+                    } else {
+                        status_data.queue_pos = None;
                     }
+                    update_statusbox(ctx, &status_data, &mut statusbox).await?;
                 }
                 GenerationEvent::Generating(percent) => {
-                    // Erase the Queued line, or a previous Generating line.
-                    // This should be index 1, but we'll just filter them all out.
-                    status_text
-                        .retain(|l| !(l.starts_with("Queued") || l.starts_with("Generating")));
-                    // Add the new Generating line.
-                    status_text.insert(1, format!("Generating ({}%)", percent));
-                    statusbox
-                        .edit(&ctx.http, |message| {
-                            message.content(&status_text.join("\n"))
-                        })
-                        .await?;
+                    status_data.queue_pos = None;
+                    status_data.gen_pct = Some(percent);
+                    update_statusbox(ctx, &status_data, &mut statusbox).await?;
                 }
                 GenerationEvent::Error(e) => {
-                    // There was an error.
-                    let err = format!("\n\n{} Error: {:#}", mention_user, e);
-                    let err = utils::segment_one(&err, 1800);
-                    status_text.push(err);
-                    statusbox
-                        .edit(&ctx.http, |message| {
-                            message.content(&status_text.join("\n"))
-                        })
-                        .await?;
+                    status_data.error = Some(e.to_string());
+                    update_statusbox(ctx, &status_data, &mut statusbox).await?;
                 }
                 GenerationEvent::Completed(c) => {
-                    // Filter out Queued or Generating, again. But also Dreaming.
-                    status_text.retain(|l| {
-                        !(l.starts_with("Dreaming")
-                            || l.starts_with("Queued")
-                            || l.starts_with("Generating"))
-                    });
-                    status_text.insert(
-                        0,
-                        format!(
-                            "Dreamed about `{}`\nGenerated {} images; now uploading",
-                            utils::clamp_string(&c.base.base.raw, 1200),
-                            c.images.len()
-                        ),
-                    );
-                    statusbox
-                        .edit(&ctx.http, |message| {
-                            message.content(&status_text.join("\n"))
-                        })
-                        .await?;
+                    status_data.queue_pos = None;
+                    status_data.gen_pct = None;
+                    // TODO: Add gallery url once the ROcket server is up.
 
                     // Add images to the database & upload them.
                     let gallery_geometry = utils::gallery_geometry(c.images.len());
                     let urls = self.context.db.add_image_batch(&c).await?;
 
-                    // Send the results to the user.
-                    let mut text = vec![
-                        format!(
-                            "Dreams of `{}` | For {}",
-                            utils::clamp_string(&c.base.base.raw, 900),
-                            mention_user
-                        ),
-                        format!(
-                            "Seed {} | {}x{} | {} steps | Guidance {}\n{}\n",
-                            c.base.seed,
-                            c.base.width,
-                            c.base.height,
-                            c.base.steps,
-                            c.base.guidance_scale,
-                            utils::clamp_string(&c.base.base.comment.unwrap_or_default(), 900),
-                        ),
-                    ];
-                    if let Some(dream) = c.base.base.dream {
-                        text.push(format!("Based on `{}`", utils::clamp_string(&dream, 900)));
-                    }
-                    text.push(urls[0].clone());
                     // Create the final message, with:
                     // - One row with a delete, restyle, and retry button.
                     // - NxM rows of upscale buttons (up to 4x4).
+                    let text = format_message(&status_data);
                     statusbox
                         .channel_id
                         .send_message(&ctx.http, |message| {
-                            message.content(text.join("\n")).components(|c| {
+                            message.content(text).components(|c| {
                                 let mut c = c.add_action_row(self.action_buttons.clone());
                                 // Given a 2x3 gallery geometry, add 3 rows of 2 buttons each.
                                 for y in 0..gallery_geometry.1 {
@@ -354,11 +409,6 @@ impl Handler {
                         .await
                         .context("Posting pictures")?;
                     // When all is said and done, delete the statusbox.
-                    // But wait if it contains a changelog update.
-                    if status_text.len() > 1 {
-                        debug!("Deferring statusbox deletion");
-                        tokio::time::sleep(std::time::Duration::from_secs(5 * 60)).await;
-                    }
                     statusbox
                         .delete(&ctx.http)
                         .await

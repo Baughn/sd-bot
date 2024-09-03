@@ -150,16 +150,9 @@ pub async fn upload_images(
     Ok(urls)
 }
 
-/// Clamps string length to a maximum limit.
-/// It ends at paragraph bounds, if it finds one before.
-pub fn clamp_string(text: &str, limit: usize) -> &str {
-    let maximum = break_line(text, limit).0;
-    let paragraph = maximum.rfind("\n\n");
-    if let Some(paragraph) = paragraph {
-        &maximum[..paragraph]
-    } else {
-        maximum
-    }
+/// Breaks text into paragraphs.
+pub fn break_paragraphs(text: &str) -> Vec<String> {
+    text.split("\n\n").map(|s| s.to_string()).collect()
 }
 
 /// Breaks a string into two halves, with the first half being at most `length_limit` bytes long.
@@ -223,20 +216,6 @@ pub fn segment_lines_condensed(text: &str, length_limit: usize) -> Vec<String> {
         segments.last_mut().unwrap().push('\n');
     }
     segments
-}
-
-/// Segment a string, discarding all but the first segment.
-/// This can return multiple lines joined by newlines.
-pub fn segment_one(text: &str, length_limit: usize) -> String {
-    let mut ret = Vec::new();
-    let lines = segment_lines(text, length_limit);
-    for line in lines {
-        if ret.len() + line.len() > length_limit {
-            break;
-        }
-        ret.push(line);
-    }
-    ret.join("\n")
 }
 
 pub fn hash(text: &str) -> String {

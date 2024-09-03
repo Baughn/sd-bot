@@ -63,6 +63,7 @@ pub enum GenerationEvent {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UserRequest {
+    // The name of the user who made the request.
     pub user: String,
     pub dream: Option<String>,
     pub raw: String,

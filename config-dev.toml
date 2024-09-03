@@ -18,10 +18,17 @@ nick = "GANBot-dev"
 channels = ["#nanobot"]
 
 [aliases]
-default = "animavividxl"
+default = "flux"
 "Anime (Fanart / Dynamic)" = "cetusMix_whalefall_v2"
 "Anime (Aesthetics)" = "MeinaMix_v11"
 "WaifuXL (experimental)" = "waifuxl"
+
+[models.flux]
+baseline = "flux1-dev-Q8_0.gguf"
+description = "Flux-dev-1. Use highly descriptive english."
+workflow = "workflow-flux.json.tmpl"
+default_positive = ""
+default_negative = ""
 
 [models.animavividxl]
 description = "AnimaVivid XL, a merge model based on AnimagineXL and Blue Pencil. Use tags, in NovelAI style; see https://cagliostrolab.net/posts/animagine-xl-v3-release"
