@@ -407,7 +407,7 @@ async fn send(sender: &Sender, target: &str, text: &str) -> Result<()> {
         sender
             .send_privmsg(target, line)
             .context("failed to send answer")?;
-        tokio::time::sleep(Duration::from_millis(250)).await;
+        tokio::time::sleep(Duration::from_millis(600)).await;
     }
     Ok(())
 }
