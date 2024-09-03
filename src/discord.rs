@@ -304,7 +304,7 @@ impl Handler {
                     let mut text = vec![
                         format!(
                             "Dreams of `{}` | For {}",
-                            utils::clamp_string(&c.base.base.raw, 1200),
+                            utils::clamp_string(&c.base.base.raw, 900),
                             mention_user
                         ),
                         format!(
@@ -318,7 +318,7 @@ impl Handler {
                         ),
                     ];
                     if let Some(dream) = c.base.base.dream {
-                        text.push(format!("Based on `{}`", dream));
+                        text.push(format!("Based on `{}`", utils::clamp_string(&dream, 900)));
                     }
                     text.push(urls[0].clone());
                     // Create the final message, with:
