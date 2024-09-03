@@ -154,7 +154,7 @@ pub async fn upload_images(
 /// It ends at paragraph bounds, if it finds one before.
 pub fn clamp_string(text: &str, limit: usize) -> &str {
     let maximum = break_line(text, limit).0;
-    let paragraph = maximum.find("\n\n");
+    let paragraph = maximum.rfind("\n\n");
     if let Some(paragraph) = paragraph {
         &maximum[..paragraph]
     } else {
