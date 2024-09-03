@@ -99,7 +99,7 @@ fn format_message(data: &DiscordMessageData) -> String {
     if let Some(url) = &data.gallery_url {
         message.push_str(&format!("Gallery: {url}\n"));
     }
-    message.push_str(&format!("Prompt: {}\n\n", data.prompt));
+    message.push_str(&format!("`{}`\n\n", data.prompt));
     // So much for the easy stuff. Let's see how much space is left.
     let mut remaining = 1950 - message.len();
     let mut enhanced =
@@ -110,10 +110,8 @@ fn format_message(data: &DiscordMessageData) -> String {
     // Add the first paragraph of the enhanced prompt.
     if let Some(first) = enhanced.next() {
         if first.len() <= remaining {
-            accepted_enhanced.push("Enhanced:\n".into());
-            remaining -= accepted_enhanced.last().unwrap().len();
             remaining -= first.len();
-            accepted_enhanced.push(first);
+            accepted_enhanced.push(first.trim().into());
         }
     }
     // Add as many comment paragraphs as possible.
@@ -121,7 +119,7 @@ fn format_message(data: &DiscordMessageData) -> String {
     for paragraph in comment {
         if paragraph.len() <= remaining {
             remaining -= paragraph.len();
-            accepted_comment.push(paragraph);
+            accepted_comment.push(paragraph.trim().into());
         } else {
             break;
         }
@@ -130,19 +128,20 @@ fn format_message(data: &DiscordMessageData) -> String {
     for paragraph in enhanced {
         if paragraph.len() <= remaining {
             remaining -= paragraph.len();
-            accepted_enhanced.push(paragraph);
+            accepted_enhanced.push(paragraph.trim().into());
         } else {
             break;
         }
     }
 
     // Wasn't that nice? Now we can add the accepted parts to the message.
-    if !accepted_enhanced.is_empty() {
-        message.push_str(&accepted_enhanced.join("\n"));
-        message.push_str("\n\n");
+    if data.enhanced.is_some() && !accepted_enhanced.is_empty() {
+        message.push_str("```\n");
+        message.push_str(&accepted_enhanced.join("\n\n"));
+        message.push_str("```\n");
     }
-    if !accepted_comment.is_empty() {
-        message.push_str(&accepted_comment.join("\n"));
+    if data.comment.is_some() && !accepted_comment.is_empty() {
+        message.push_str(&accepted_comment.join("\n\n"));
     }
 
     // And the queue position / generation percentage / ETA.
