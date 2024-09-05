@@ -430,10 +430,8 @@ impl ParsedRequest {
             result
         }
 
-        let combined_prompt = format!(
-            "Style: {}. Content: {}",
-            supporting_prompt, linguistic_prompt
-        );
+        let combined_prompt =
+            format!("{linguistic_prompt}. The overall style is {supporting_prompt}");
 
         let workflow = workflow
             .replace(
