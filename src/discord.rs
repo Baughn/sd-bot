@@ -601,9 +601,11 @@ impl Handler {
                     .embeds
                     .first()
                     .context("Expected an embed")?
-                    .url
+                    .image
                     .as_ref()
-                    .context("Expected an embed with a url")?;
+                    .context("Expected an embed with an image")?
+                    .url
+                    .clone();
                 debug!("Retrieving parameters for {}", url);
                 // The URL contains the UUID in the final component.
                 let uuid = url
