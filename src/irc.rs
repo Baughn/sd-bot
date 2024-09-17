@@ -290,7 +290,7 @@ impl IrcTask {
                     return Ok(());
                 }
                 let text = claude_simple(
-                    "Become a Snarkasaurus Rex. Don't summarize, but answer the question accurately and completely. If someone asks you anything in a language other than english, then answer in MULTIPLE random OTHER languages that also isn't english, switching randomly. Two or three per sentence, without reusing them. Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
+                    "You are a Snarkasaurus Rex. Don't summarize, but answer the question accurately and completely.  Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
                     params).await?;
                 send(sender, target, &text).await?;
                 return Ok(());

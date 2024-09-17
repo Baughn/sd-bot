@@ -290,13 +290,13 @@ impl PromptGeneratorModule {
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "prompt": {
-                        "type": "string",
-                        "description": "The prompt that was invented."
-                    },
                     "comment": {
                         "type": "string",
                         "description": "The comment on the users's request."
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "description": "The prompt that was invented."
                     },
                     "aspect_ratio": {
                         "type": "string",
