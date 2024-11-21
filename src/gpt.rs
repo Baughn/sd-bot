@@ -145,7 +145,7 @@ async fn do_claude<T: DeserializeOwned + Clone>(
     let url = "https://api.anthropic.com/v1/messages";
     let req = if let Some(schema) = schema {
         json!({
-            "model": "claude-3-5-sonnet-20240620",
+            "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 4096,
             "tools": [schema],
             "tool_choice": {"type": "tool", "name": schema["name"]},

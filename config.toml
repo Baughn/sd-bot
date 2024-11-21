@@ -25,18 +25,26 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "flux"
-sdxl = "sdxl_1.0"
-"sd3" = "sd3-medium"
-"Cartoon" = "ponyxl"
-"Painterly" = "zavyyumexl"
-"Aesthetic" = "duchaitenxl"
+default = "sd35"
+"fanart" = "pasanctuary"
+"sd35" = "sd35-large"
 "Realistic" = "realvis"
 "Drawings" = "breakdomainxl"
-"Anime_(Fanart_/_Dynamic)" = "cetusMix_whalefall_v2"
-"Anime_(Aesthetics)" = "MeinaMix_v11"
-"AnimeXL" = "animavividxl"
 "honkai" = "animaginexl"
+
+[models.pasanctuary]
+baseline = "xl/pasanctuarySDXL_v20.safetensors"
+description = "PASanctuary SDXL 2.0. For fanart. Use tags."
+workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+default_positive = "masterpiece, best quality"
+default_negative = "lowres, worst quality, low quality, bad anatomy, bad proportions, simple background, dungaree, overalls"
+
+[models.illustriousxl]
+baseline = "xl/illustriousXL_v01.safetensors"
+description = "illustrious xl. for fanart. use tags."
+workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+default_positive = ""
+default_negative = "worst quality, comic, multiple views, bad quality, low quality, lowres, displeasing, very displeasing, bad anatomy, bad hands, scan artifacts, monochrome, greyscale, signature, twitter username, jpeg artifacts, 2koma, 4koma, guro, extra digits, fewer digits"
 
 [models.nai]
 baseline = "N/A"
@@ -44,6 +52,13 @@ description = "NovelAI. For personal use only."
 workflow = "workflow-nai.json.tmpl"
 default_positive = ""
 default_negative = "lowres"
+
+[models.sd35-large]
+baseline = "sd35/stableDiffusion35_v10_fp8.safetensors"
+description = "SD 3.5-Large. Unexpectedly good. Use highly descriptive english."
+workflow = "workflow-sd35.json.tmpl"
+default_positive = ""
+default_negative = ""
 
 [models.flux-realistic]
 baseline = "flux1-dev-Q8_0.gguf"

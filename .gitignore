@@ -19,3 +19,4 @@ target/
 /__pycache__
 /prompt-completions.log
 ganbot.sqlite3
+.flox/log

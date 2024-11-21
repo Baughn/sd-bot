@@ -363,11 +363,16 @@ impl ParsedRequest {
         Ok(parsed)
     }
 
-    /// In general we have a limit of 12 Megapixels per request.
+    /// In general we have a limit of 4 Megapixels per request.
+    /// There's no benefit to Flux from batching images, so don't.
     fn max_batch_size(&self) -> u32 {
-        let max_pixels = (12 * 1024 * 1024) as f32;
-        let pixels_per_image = (self.width * self.height) as f32;
-        (max_pixels / pixels_per_image) as u32
+        if self.model_name.contains("flux") {
+            1
+        } else {
+            let max_pixels = (4 * 1024 * 1024) as f32;
+            let pixels_per_image = (self.width * self.height) as f32;
+            (max_pixels / pixels_per_image) as u32
+        }
     }
 
     /// Builds a query string for the backend.
@@ -398,15 +403,11 @@ impl ParsedRequest {
         let workflow =
             std::fs::read_to_string(&model_config.workflow).context("failed to read workflow")?;
         // Replace the placeholders.
-        let linguistic_prompt = if self.use_pos_default {
+        let linguistic_prompt = if self.use_pos_default && !model_config.default_positive.is_empty()
+        {
             model_config.default_positive.clone() + ", " + &self.linguistic_prompt
         } else {
             self.linguistic_prompt.clone()
-        };
-        let supporting_prompt = if self.use_pos_default {
-            model_config.default_positive.clone() + ", " + &self.supporting_prompt
-        } else {
-            self.supporting_prompt.clone()
         };
         let negative_prompt = if self.use_neg_default {
             self.negative_prompt.clone() + ", " + &model_config.default_negative
@@ -430,8 +431,12 @@ impl ParsedRequest {
             result
         }
 
-        let combined_prompt =
-            format!("{linguistic_prompt}. The overall style is {supporting_prompt}");
+        let combined_prompt = if self.supporting_prompt.is_empty() {
+            linguistic_prompt.clone()
+        } else {
+            let supporting_prompt = &self.supporting_prompt;
+            format!("{linguistic_prompt}. The overall style is {supporting_prompt}")
+        };
 
         let workflow = workflow
             .replace(
@@ -453,7 +458,7 @@ impl ParsedRequest {
             )
             .replace("__NEGATIVE_PROMPT__", &json_encode_string(&negative_prompt))
             .replace("__PROMPT_A__", &json_encode_string(&linguistic_prompt))
-            .replace("__PROMPT_B__", &json_encode_string(&supporting_prompt))
+            .replace("__PROMPT_B__", &json_encode_string(&self.supporting_prompt))
             .replace("__COMBINED_PROMPT__", &json_encode_string(&combined_prompt))
             .replace("__STEPS_TOTAL__", &self.steps.to_string())
             .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
@@ -850,11 +855,12 @@ impl ImageGeneratorModule {
                 yield GenerationEvent::GPTCompleted(request.clone());
             } else {
                 // This is an explicit request. Generate some fun commentary, but only in channels.
-                if !request.private {
-                    let comment = self.0.read().await.prompt_generator.comment(&request.user, &request.raw).await?;
-                    request.comment = Some(comment);
-                    yield GenerationEvent::GPTCompleted(request.clone());
-                }
+                // TODO: Use 3.5mini for this.
+                //if !request.private {
+                //    let comment = self.0.read().await.prompt_generator.comment(&request.user, &request.raw).await?;
+                //    request.comment = Some(comment);
+                //    yield GenerationEvent::GPTCompleted(request.clone());
+                //}
             }
 
             // TODO: Snapshot the config here, keep it for the scope of the request.

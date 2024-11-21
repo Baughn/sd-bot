@@ -19,7 +19,7 @@ use tokio_stream::StreamExt;
 
 use crate::{
     changelog,
-    generator::{self, GenerationEvent, UserRequest},
+    generator::{self, GenerationEvent, ParsedRequest, UserRequest},
     help, utils, BotContext,
 };
 
@@ -61,6 +61,7 @@ struct DiscordMessageData {
     pub mention: String,
     // The prompt that was used to generate the image.
     pub prompt: String,
+    pub seed: Option<u32>,
     // True for /dream, false for /prompt.
     pub is_dream: bool,
     /// Accessible if there is a changelog entry:
@@ -85,6 +86,7 @@ struct DiscordMessageData {
 // - Error message (if present)
 // - Gallery link for the image server.
 // - Original prompt
+// - Seed
 // - 1st paragraph of enhanced prompt
 // - The entire comment.
 // - The rest of the enhanced prompt.
@@ -100,6 +102,9 @@ fn format_message(data: &DiscordMessageData) -> String {
         message.push_str(&format!("Gallery: {url}\n"));
     }
     message.push_str(&format!("`{}`\n\n", data.prompt));
+    if let Some(seed) = data.seed {
+        message.push_str(&format!("Seed: {}\n\n", seed));
+    }
     // So much for the easy stuff. Let's see how much space is left.
     let mut remaining = 1950 - message.len();
     let mut enhanced =
@@ -150,6 +155,17 @@ fn format_message(data: &DiscordMessageData) -> String {
     }
     if let Some(gen_pct) = data.gen_pct {
         message.push_str(&format!("\n\nGeneration progress: {gen_pct}%"));
+    }
+
+    // Fix any tripled newlines.
+    // TODO: Just don't make them in the first place.
+    let mut pl = message.len();
+    loop {
+        message = message.replace("\n\n\n", "\n\n");
+        if message.len() == pl {
+            break;
+        }
+        pl = message.len();
     }
 
     // Do a final check for the message length... just in case.
@@ -307,6 +323,7 @@ impl Handler {
             } else {
                 request.raw.clone()
             },
+            seed: None,
             is_dream: request.dream.is_some(),
             enhanced: None,
             comment: None,
@@ -349,9 +366,10 @@ impl Handler {
                     c.comment.clone_into(&mut status_data.comment);
                     update_statusbox(ctx, &status_data, &mut statusbox).await?;
                 }
-                GenerationEvent::Parsed(_) => (
-                    // TODO: Implement this.
-                ),
+                GenerationEvent::Parsed(parsed) => {
+                    status_data.seed = Some(parsed.seed);
+                    update_statusbox(ctx, &status_data, &mut statusbox).await?;
+                }
                 GenerationEvent::Queued(n) => {
                     if n > 0 {
                         status_data.queue_pos = Some(n);
