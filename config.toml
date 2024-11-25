@@ -26,6 +26,7 @@ channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
 default = "sd35"
+"dream" = "pixelwave"
 "fanart" = "pasanctuary"
 "sd35" = "sd35-large"
 "Realistic" = "realvis"
@@ -65,6 +66,13 @@ baseline = "flux1-dev-Q8_0.gguf"
 description = "Flux-dev-1. Use highly descriptive english."
 workflow = "workflow-flux.json.tmpl"
 default_positive = "High-quality photo."
+default_negative = ""
+
+[models.pixelwave]
+baseline = "pixelwave_flux1Dev03.gguf"
+description = "Pixelwave. Like Flux, but with slightly less plastic. Use highly descriptive english."
+workflow = "workflow-flux.json.tmpl"
+default_positive = ""
 default_negative = ""
 
 [models.flux]

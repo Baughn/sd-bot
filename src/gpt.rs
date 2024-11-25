@@ -20,7 +20,7 @@ pub struct GeneratedPrompt {
 
 impl Display for GeneratedPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} --ar {} -m flux", self.prompt, self.aspect_ratio)
+        write!(f, "{} --ar {} -m dream", self.prompt, self.aspect_ratio)
     }
 }
 

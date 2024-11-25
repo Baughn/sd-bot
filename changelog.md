@@ -14,6 +14,7 @@
 
 # Models
 
+- Added Pixelwave (a Flux finetune) as `-m pixelwave`. It's the new default for dream. Mostly it's just a bit less plasticky and better at styling.
 - Added PASanctuary SDXL as `-m pasanctuary` and `-m fanart`. This model is useful for all your anime fanart purposes. Prompt with tags.
 - Default model changed to Stable Diffusion 3.5-Large. Use highly descriptive english. This one is much better than you'd think. Dream still uses Flux.
 - Renamed flux to flux-anime, and added flux-realistic. If what you want is neither, use just `-m flux`, but remember to pick a style!
