@@ -66,11 +66,12 @@
     },
     "class_type": "OverrideCLIPDevice"
   },
-  "12": {
+  "unet": {
     "inputs": {
-      "ckpt_name": "__BASE_CHECKPOINT__"
+      "unet_name": "__BASE_CHECKPOINT__",
+      "weight_dtype": "fp8_e4m3fn_fast"
     },
-    "class_type": "CheckpointLoaderSimple",
+    "class_type": "UNETLoader",
     "_meta": {
       "title": "Load Diffusion Model"
     }
@@ -118,7 +119,7 @@
       "steps": __STEPS_TOTAL__,
       "denoise": 1.0,
       "model": [
-        "12",
+        "unet",
         0
       ]
     },
@@ -136,10 +137,18 @@
       "title": "RandomNoise"
     }
   },
+  "clip": {
+    "class_type": "DualCLIPLoader",
+    "inputs": {
+      "clip_name1": "t5xxl_fp16.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux"
+    }
+  },
   "27": {
     "inputs": {
       "model": [
-        "12",
+        "unet",
         0
       ],
       "conditioning": [

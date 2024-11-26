@@ -69,9 +69,9 @@ default_positive = "High-quality photo."
 default_negative = ""
 
 [models.pixelwave]
-baseline = "pixelwave_flux1Dev03.gguf"
+baseline = "pixelwave_flux1Dev03.safetensors"
 description = "Pixelwave. Like Flux, but with slightly less plastic. Use highly descriptive english."
-workflow = "workflow-flux.json.tmpl"
+workflow = "workflow-flux-unet.json.tmpl"
 default_positive = ""
 default_negative = ""
 
