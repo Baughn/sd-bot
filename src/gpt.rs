@@ -279,7 +279,7 @@ impl PromptGeneratorModule {
                 last_prompt = "None";
                 last_response = "None";
             }
-            user_message = format!("Username: {}\nNSFW disallowed\n\nPrevious prompt:\n{}\n\nPrevious response:\n{}\n\nCurrent prompt:\n{}",
+            user_message = format!("Username: {}\nNSFW allowed\n\nPrevious prompt:\n{}\n\nPrevious response:\n{}\n\nCurrent prompt:\n{}",
                 user, last_prompt, last_response, dream);
         }
 
@@ -303,7 +303,7 @@ impl PromptGeneratorModule {
                         "description": "The aspect ratio of the image."
                     }
                 },
-                "required": ["prompt", "comment", "aspect_ratio"]
+                "required": ["comment", "aspect_ratio", "prompt"]
             },
         });
 
@@ -322,8 +322,8 @@ impl PromptGeneratorModule {
                     last_prompt: dream.to_string(),
                     // We'll pretend it only output the prompt and comment, and store that as JSON.
                     last_response: format!(
-                        "{{ \"prompt\": \"{}\", \"comment\": \"{}\" }}",
-                        parsed.prompt, parsed.comment
+                        "{{ \"comment\": \"{}\", \"prompt\": \"{:?}\" }}",
+                        parsed.comment, parsed.prompt
                     ),
                 },
             );

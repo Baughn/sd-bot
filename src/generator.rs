@@ -613,18 +613,29 @@ impl ImageGeneratorModule {
         .await
         .context("failed to connect to websocket")?
         .0;
-        for _ in 0..10 {
-            select! {
-                msg = ws_client.next() => {
-                    trace!("Got websocket message: {:?}", msg);
-                    // Something happened, so we should poll the history endpoint.
-                    // We'll do that below.
-                },
-                _ = futures_time::task::sleep(futures_time::time::Duration::from_secs(90)).fuse() => {
-                    warn!("Websocket sleep timed out");
-                    // Really this should never happen, but try to recover anyway.
-                },
-            };
+        for iteration in 0..10 {
+            // Loop across websocket messages until we get one indicating completion.
+            loop {
+                select! {
+                    msg = ws_client.next() => {
+                        if let Some(Result::Ok(tungstenite::protocol::Message::Text(msg))) = msg {
+                            // Parse as JSON.
+                            let msg: serde_json::Value = serde_json::from_str(&msg).context("failed to parse websocket message")?;
+                            if msg.get("type").and_then(|t| t.as_str()) == Some("status") {
+                                break;
+                            }
+                        } else {
+                            warn!("Got unexpected websocket message: {:?}", msg);
+                            break;
+                        }
+                    },
+                    _ = futures_time::task::sleep(futures_time::time::Duration::from_secs(90)).fuse() => {
+                        warn!("Websocket sleep timed out");
+                        // Really this should never happen, but try to recover anyway.
+                        break;
+                    },
+                }
+            }
             trace!("Polling history");
             let client = reqwest::Client::new();
             let history: serde_json::Value = client
@@ -727,6 +738,7 @@ impl ImageGeneratorModule {
 
                 let retry_strategy = ExponentialBackoff::from_millis(50).max_delay(std::time::Duration::from_secs(2)).take(5);
                 let images = Retry::spawn(retry_strategy, || async {
+                    debug!("Generating batch of {} images", batch_size);
                     let request = request.build_query(&config, batch_size, seed_offset).context("Failed to build query")?;
                     Self::generate_batch(backend, request).await.context("Failed to generate batch")
                 }).await.context("Ran out of retries")?;
