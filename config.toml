@@ -123,12 +123,13 @@ default_steps = 60
 
 
 [models.illustriousxl]
-baseline = "xl-ill/illustriousXL_v01.safetensors"
-description = "illustrious xl. for fanart. use tags."
+baseline = "xl-ill/Illustrious-XL-v1.0.safetensors"
+description = "Illustrious 1.0. For fanart. Use tags and english."
 workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = ""
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
 default_steps = 60
+base_resolution = 1536
 
 [models.nai]
 baseline = "N/A"

@@ -321,17 +321,17 @@ impl ParsedRequest {
         while let Some(alias) = config.aliases.get(&parsed.model_name) {
             parsed.model_name.clone_from(alias);
         }
+        let model_config = config
+            .models
+            .get(&parsed.model_name)
+            .context("no such model")?;
 
         if let Some((w, h)) = override_wh {
             (parsed.width, parsed.height) = (w, h);
         } else {
-            // Parse the aspect ratio.
-            // This has to be done last, because it depends on the selected model.
-            if parsed.model_name.contains("cascade") {
-                (parsed.width, parsed.height) = ParsedRequest::parse_aspect_ratio(128, 1280, ar)?;
-            } else {
-                (parsed.width, parsed.height) = ParsedRequest::parse_aspect_ratio(64, 1024, ar)?;
-            }
+            let base_resolution = model_config.base_resolution.unwrap_or(1024);
+            (parsed.width, parsed.height) =
+                ParsedRequest::parse_aspect_ratio(64, base_resolution, ar)?;
         }
 
         // Final sanity checks.
@@ -352,7 +352,7 @@ impl ParsedRequest {
         if parsed.count > 9 {
             parsed.count = 9;
         }
-        if parsed.max_batch_size() < 1 || (parsed.width * parsed.height > 1600 * 1600) {
+        if parsed.max_batch_size() < 1 || (parsed.width * parsed.height > 2048 * 2048) {
             bail!("Resolution is too high");
         }
 
