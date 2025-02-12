@@ -63,6 +63,7 @@ pub struct BotModelConfig {
     pub vae: Option<String>,
     pub default_positive: String,
     pub default_negative: String,
+    pub default_steps: Option<u32>,
 }
 
 struct ConfigEventHandler {
@@ -85,9 +86,9 @@ impl EventHandler for ConfigEventHandler {
 }
 
 #[derive(Clone)]
-pub struct BotConfigModule{
+pub struct BotConfigModule {
     config_path: String,
-    data: Arc<RwLock<BotConfig>>
+    data: Arc<RwLock<BotConfig>>,
 }
 
 impl BotConfigModule {

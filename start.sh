@@ -1,4 +1,4 @@
-#!/usr/bin/env cached-nix-shell
+#!/usr/bin/env nix-shell
 #!nix-shell -i bash -p shellcheck
 # shellcheck shell=bash
 #
@@ -24,7 +24,7 @@ if [[ "${DISCORD_BOT_TOKEN}" == "your_token_here" ]]; then
 fi
 
 # For debugging
-export RUST_LOG="${RUST_LOG:-info,sd_bot_2=debug,tracing=warn,serenity=warn}"
+export RUST_LOG="${RUST_LOG:-info,sd_bot_2=info,tracing=warn,serenity=warn}"
 #export RUST_BACKTRACE=1
 
 /run/current-system/sw/bin/flox activate -- cargo run --release -- -c config.toml

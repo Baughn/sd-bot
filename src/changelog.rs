@@ -72,7 +72,7 @@ fn parse_changelog() -> Changelog {
 
     for line in CHANGELOG_STR.lines() {
         trace!("Parsing {line}");
-        if let Some(feature) = line.strip_prefix("# ") {
+        if let Some(feature) = line.strip_prefix("## ") {
             finish_update(&mut features, &mut current_feature, &mut current_update);
             current_feature = Some(feature.to_string());
         } else if line.starts_with("- ") {

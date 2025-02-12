@@ -92,7 +92,7 @@ pub struct ParsedRequest {
     pub use_neg_default: bool,     // --nn
     pub guidance_scale: f32,       // --scale
     pub aesthetic_scale: f32,      // --aesthetic, -a
-    pub steps: u32,                // --steps
+    pub steps: Option<u32>,        // --steps
     pub count: u32,                // --count, -c
     pub seed: u32,                 // --seed
     // Width and height cannot be set directly; they are derived from --ar.
@@ -117,10 +117,10 @@ impl Default for ParsedRequest {
             negative_prompt: "".to_string(),
             use_pos_default: true,
             use_neg_default: true,
-            guidance_scale: 6.0,
+            guidance_scale: 5.5,
             aesthetic_scale: 20.0,
-            steps: 28,
-            count: 2,
+            steps: None,
+            count: 4,
             seed: 0,
             width: 1024,
             height: 1024,
@@ -261,7 +261,9 @@ impl ParsedRequest {
                         parsed.aesthetic_scale =
                             value.parse().context("Aesthetic scale must be a number")?
                     }
-                    "steps" => parsed.steps = value.parse().context("Steps must be a number")?,
+                    "steps" => {
+                        parsed.steps = Some(value.parse().context("Steps must be a number")?)
+                    }
                     "count" | "c" => {
                         parsed.count = value.parse().context("Count must be a number")?
                     }
@@ -342,8 +344,10 @@ impl ParsedRequest {
         if !(1.0..=30.0).contains(&parsed.aesthetic_scale) {
             bail!("Aesthetic scale must be between 1 and 30");
         }
-        if parsed.steps < 1 || parsed.count < 1 {
-            bail!("We're done! Wasn't that fast?")
+        if let Some(s) = parsed.steps {
+            if s < 1 {
+                bail!("We're done! Wasn't that fast?")
+            }
         }
         if parsed.count > 9 {
             parsed.count = 9;
@@ -414,7 +418,14 @@ impl ParsedRequest {
         } else {
             self.negative_prompt.clone()
         };
-        let steps_cutover = (self.steps as f32 * 0.5) as u32;
+        let steps = self
+            .steps
+            .unwrap_or(model_config.default_steps.unwrap_or(30));
+        let steps_cutover = (steps as f32 * 0.5) as u32;
+        info!("Generating {} images in {} steps", self.count, steps);
+        info!("Linguistic prompt: {}", linguistic_prompt);
+        info!("Supporting prompt: {}", self.supporting_prompt);
+        info!("Negative prompt: {}", negative_prompt);
 
         fn json_encode_string(s: &str) -> String {
             let mut result = String::new();
@@ -460,12 +471,14 @@ impl ParsedRequest {
             .replace("__PROMPT_A__", &json_encode_string(&linguistic_prompt))
             .replace("__PROMPT_B__", &json_encode_string(&self.supporting_prompt))
             .replace("__COMBINED_PROMPT__", &json_encode_string(&combined_prompt))
-            .replace("__STEPS_TOTAL__", &self.steps.to_string())
+            .replace("__STEPS_TOTAL__", &steps.to_string())
             .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
             .replace("__WIDTH__", &self.width.to_string())
             .replace("__HEIGHT__", &self.height.to_string())
             .replace("__WIDTH_d2__", &(self.width / 2).to_string())
             .replace("__HEIGHT_d2__", &(self.height / 2).to_string())
+            .replace("__2xWIDTH__", &(self.width * 2).to_string())
+            .replace("__2xHEIGHT__", &(self.height * 2).to_string())
             .replace("__4xWIDTH__", &(self.width * 4).to_string())
             .replace("__4xHEIGHT__", &(self.height * 4).to_string())
             .replace("__SEED__", &(self.seed + seed_offset).to_string())
@@ -500,7 +513,7 @@ impl ParsedRequest {
     fn score(&self, previous_request: &ParsedRequest) -> f32 {
         let mut score = 0.0;
         // On an average picture, this subtracts 2.
-        score -= (self.count as f32 * self.steps as f32) / (Self::default().count as f32);
+        score -= (self.count as f32) / (Self::default().count as f32);
         // Prefer to alternate between users.
         if self.base.user != previous_request.base.user {
             score += 2.0;
@@ -684,7 +697,7 @@ impl ImageGeneratorModule {
             });
             if let Some(fns) = maybe_filenames {
                 filenames = fns;
-                info!("Got filenames: {:?}", filenames);
+                debug!("Got filenames: {:?}", filenames);
             } else {
                 bail!("no images in history");
             }

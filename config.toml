@@ -25,53 +25,114 @@ nick = "GANBot"
 channels = ["#questionablebotting", "#questionablequesting"]
 
 [aliases]
-default = "sd35"
-"dream" = "pixelwave"
-"fanart" = "pasanctuary"
-"pasanctuary" = "pasanctuary-4.0"
+default = "flux-realistic"
+"dream" = "flux-realistic"
+"fanart" = "ntrmix"
+"fanart-cute" = "monody"
+"fanart-realistic" = "realism-illustrious"
+"fanart-photorealistic" = "realism-illustrious-1.6-photorealistic"
+"pasanctuary" = "pasanctuary-5.0"
 "sd35" = "sd35-large"
 "Realistic" = "realvis"
 "Drawings" = "breakdomainxl"
 "honkai" = "animaginexl"
 
+[models.sana]
+baseline = "undefined"
+description = "Sana 2k model. Experiment. Use english; don't expect photorealism."
+workflow = "workflow-sana.json.tmpl"
+default_positive = ""
+default_negative = "photo, depth of field"
+
+[models."realism-illustrious"]
+baseline = "xl-ill/realismIllustriousBy_v13FP16.safetensors"
+description = "Realism Illustrious 1.3. For fanart, but realistic. Use tags."
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = ""
+default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale"
+
+[models.rouwei]
+baseline = "xl-ill/rouwei_061Vpred.safetensors"
+description = "Rouwei, an opinionated fanart model. Use tags."
+workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+default_positive = "newest, best quality, rouwei"
+default_negative = "worst quality, low quality, watermark"
+
+[models."realism-illustrious-1.6-photorealistic"]
+baseline = "xl-ill/realismIllustriousBy_v13FP16.safetensors"
+description = "Realism Illustrious 1.3. For fanart, but realistic. Use tags."
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = " embedding:Stable_Yogis_Illustrious_Positives.safetensors cinematic photo, masterpiece, best quality, amazing quality, realistic"
+default_negative = "embedding:Stable_Yogis_Illustrious_Negatives-neg.safetensors"
+
+[models.ntrmix]
+baseline = "xl-ill/ntrMIXIllustriousXL_v40.safetensors"
+description = "NTRMix. Illustrious-based; for fanart. Use tags."
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = "masterpiece, best quality, newest, absurdres, highres"
+default_negative = "bored, simple background, worst quality, old, early, low quality, lowres, bad hands, mutated hands, censored, monochrome"
+default_steps = 60
+
+[models.monody]
+baseline = "xl-ill/monodyIllustrious_a1.safetensors"
+description = "Monody Illustrious. For *cute* fanart. Use tags."
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = "masterpiece (quality), best quality, good quality, newest"
+default_negative = "bored, greyscale, simple background, worst quality, bad quality, low quality, lowres, jpeg artifacts, bad anatomy, bad hands, multiple views, signature, watermark, censored, greyscale, monochrome,"
+default_steps = 60
+
 [models."pasanctuary-1.0"]
 baseline = "xl-ill/pasanctuarySDXL_v10.safetensors"
 description = "PASanctuary SDXL 1.0. For fanart. Use tags."
-workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
-default_positive = "masterpiece, best quality"
-default_negative = "lowres, worst quality, low quality, bad anatomy, bad proportions, simple background, dungaree, overalls"
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = "masterpiece, best quality, good quality, newest, absurdres, highres"
+default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
+default_steps = 60
 
 [models."pasanctuary-2.0"]
 baseline = "xl-ill/pasanctuarySDXL_v20.safetensors"
 description = "PASanctuary SDXL 2.0. For fanart. Use tags."
-workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality"
-default_negative = "lowres, worst quality, low quality, bad anatomy, bad proportions, simple background, dungaree, overalls"
+default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
+default_steps = 60
 
 [models."pasanctuary-3.0"]
 baseline = "xl-ill/pasanctuarySDXL_v30.safetensors"
 description = "PASanctuary SDXL 3.0. For fanart. Use tags."
-workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
-default_positive = "masterpiece, best quality"
-default_negative = "lowres, worst quality, low quality, bad anatomy, bad proportions, simple background, dungaree, overalls, (nsfw, see-through:0.7)"
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = "masterpiece, best quality, good quality, newest, absurdres, highres"
+default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
+default_steps = 60
 
 [models."pasanctuary-4.0"]
 baseline = "xl-ill/pasanctuarySDXL_v40.safetensors"
 description = "PASanctuary SDXL 4.0. For fanart. Use tags."
-workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+workflow = "workflow-sdxl-illustrious.json.tmpl"
+default_positive = "masterpiece, best quality, good quality, newest, absurdres, highres"
+default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
+default_steps = 60
+
+[models."pasanctuary-5.0"]
+baseline = "xl-ill/pasanctuarySDXL_v50.safetensors"
+description = "PASanctuary SDXL 5.0. For fanart. Use tags."
+workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality, newest, absurdres, highres"
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
+default_steps = 60
+
 
 [models.illustriousxl]
 baseline = "xl-ill/illustriousXL_v01.safetensors"
 description = "illustrious xl. for fanart. use tags."
-workflow = "workflow-sdxl-norefiner-upscale-clip2-euler.json.tmpl"
+workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = ""
-default_negative = "worst quality, comic, multiple views, bad quality, low quality, lowres, displeasing, very displeasing, bad anatomy, bad hands, scan artifacts, monochrome, greyscale, signature, twitter username, jpeg artifacts, 2koma, 4koma, guro, extra digits, fewer digits"
+default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
+default_steps = 60
 
 [models.nai]
 baseline = "N/A"
-description = "NovelAI. For personal use only."
+description = "NovelAI. For personal use only. Do not use, it doesn't work."
 workflow = "workflow-nai.json.tmpl"
 default_positive = ""
 default_negative = "lowres"
@@ -84,10 +145,10 @@ default_positive = ""
 default_negative = ""
 
 [models.flux-realistic]
-baseline = "flux1-dev-Q8_0.gguf"
-description = "Flux-dev-1. Use highly descriptive english."
-workflow = "workflow-flux.json.tmpl"
-default_positive = "High-quality photo."
+baseline = "flux/jibMixFlux_v72PixelHeaven.safetensors"
+description = "Flux jibmix. Use highly descriptive english."
+workflow = "workflow-flux-checkpoint.json.tmpl"
+default_positive = ""
 default_negative = ""
 
 [models.pixelwave]

@@ -20,7 +20,11 @@ pub struct GeneratedPrompt {
 
 impl Display for GeneratedPrompt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} --ar {} -m dream", self.prompt, self.aspect_ratio)
+        write!(
+            f,
+            "{} --ar {} -m dream -c 2",
+            self.prompt, self.aspect_ratio
+        )
     }
 }
 
@@ -279,7 +283,7 @@ impl PromptGeneratorModule {
                 last_prompt = "None";
                 last_response = "None";
             }
-            user_message = format!("Username: {}\nNSFW allowed\n\nPrevious prompt:\n{}\n\nPrevious response:\n{}\n\nCurrent prompt:\n{}",
+            user_message = format!("Username: {}\n\nPrevious prompt:\n{}\n\nPrevious response:\n{}\n\nCurrent prompt:\n{}",
                 user, last_prompt, last_response, dream);
         }
 

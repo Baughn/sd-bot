@@ -99,7 +99,7 @@ pub async fn upload_images(
         .prefix("GANBot")
         .tempdir()
         .context("failed to create temporary directory")?;
-    info!(
+    debug!(
         "Uploading {} bytes in {} images",
         images.iter().map(|i| i.len()).sum::<usize>(),
         images.len()

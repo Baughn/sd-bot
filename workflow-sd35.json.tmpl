@@ -4,11 +4,11 @@
       "seed": __SEED__,
       "steps": __STEPS_TOTAL__,
       "cfg": __BASE_CFG__,
-      "sampler_name": "dpmpp_2m",
+      "sampler_name": "euler",
       "scheduler": "sgm_uniform",
       "denoise": 1,
       "model": [
-        "4",
+        "unet",
         0
       ],
       "positive": [
@@ -37,6 +37,24 @@
     "_meta": {
       "title": "Load Checkpoint"
     }
+  },
+  "unet": {
+    "inputs": {
+      "model": [
+        "4",
+        0
+      ],
+      "is_patcher": true,
+      "object_to_patch": "diffusion_model",
+      "compiler": "torch.compile",
+      "fullgraph": false,
+      "dynamic": false,
+      "mode": "",
+      "options": "",
+      "disable": false,
+      "backend": "inductor"
+    },
+    "class_type": "EnhancedCompileModel"
   },
   "8": {
     "inputs": {

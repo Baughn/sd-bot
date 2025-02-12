@@ -66,7 +66,7 @@
     },
     "class_type": "OverrideCLIPDevice"
   },
-  "unet": {
+  "unet-loader": {
     "inputs": {
       "unet_name": "__BASE_CHECKPOINT__",
       "weight_dtype": "fp8_e4m3fn_fast"
@@ -75,6 +75,38 @@
     "_meta": {
       "title": "Load Diffusion Model"
     }
+  },
+  "unet-cached": {
+    "inputs": {
+      "model": [
+        "unet-loader",
+        0
+      ],
+      "object_to_patch": "diffusion_model",
+      "residual_diff_threshold": 0.1,
+      "start": 0.2,
+      "end": 0.8,
+      "max_consecutive_cache_hits": 2
+    },
+    "class_type": "ApplyFBCacheOnModel"
+  },
+  "unet": {
+    "inputs": {
+      "model": [
+        "unet-cached",
+        0
+      ],
+      "is_patcher": true,
+      "object_to_patch": "diffusion_model",
+      "compiler": "torch.compile",
+      "fullgraph": false,
+      "dynamic": false,
+      "mode": "",
+      "options": "",
+      "disable": false,
+      "backend": "inductor"
+    },
+    "class_type": "EnhancedCompileModel"
   },
   "13": {
     "inputs": {
