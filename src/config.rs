@@ -21,6 +21,7 @@ lazy_static! {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BotConfig {
+    pub owner: String,
     pub command_prefix: String,
     pub backend: BotBackend,
     pub database: DatabaseConfig,

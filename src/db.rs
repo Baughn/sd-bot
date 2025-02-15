@@ -1,15 +1,19 @@
-use std::{sync::Arc, collections::HashSet};
+use std::{collections::HashSet, sync::Arc};
 
 /// This wraps a simple sqlite database.
 /// The database stores per-user settings and a log of generated images.
 ///
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 
 use log::{info, trace};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{params, Connection, OptionalExtension};
 use tokio::sync::Mutex;
 
-use crate::{config::BotConfigModule, generator::{CompletedRequest, UserRequest, ParsedRequest}, utils};
+use crate::{
+    config::BotConfigModule,
+    generator::{CompletedRequest, ParsedRequest, UserRequest},
+    utils,
+};
 
 struct Database {
     config: BotConfigModule,
@@ -59,13 +63,47 @@ impl DatabaseModule {
 
     // Public functions MUST lock the database mutex.
 
+    /// Sets or clears the is-paused state.
+    pub async fn set_paused(&self, paused: Option<&str>) -> Result<()> {
+        let db = self.0.lock().await;
+        db.conn
+            .execute("DELETE FROM BotPaused", params![])
+            .context("failed to clear paused state")?;
+        if let Some(reason) = paused {
+            db.conn
+                .execute("INSERT INTO BotPaused (reason) VALUES (?)", [reason])
+                .context("failed to set paused state")?;
+        }
+        Ok(())
+    }
+
+    /// Returns the current paused state.
+    pub async fn get_paused(&self) -> Result<Option<String>> {
+        let db = self.0.lock().await;
+        let mut stmt = db.conn.prepare("SELECT reason FROM BotPaused")?;
+        let mut rows = stmt.query([])?;
+        if let Some(row) = rows.next()? {
+            let reason: String = row.get(0).context("failed to get reason")?;
+            Ok(Some(reason))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn error_if_paused(&self) -> Result<()> {
+        if let Some(reason) = self.get_paused().await? {
+            bail!("The bot is paused: {}", reason);
+        }
+        Ok(())
+    }
+
     /// Adds an image batch to the DB & uploads them to the webserver.
     /// Returns the URLs of the images.
     pub async fn add_image_batch(&self, c: &CompletedRequest) -> Result<Vec<String>> {
         let mut db = self.0.lock().await;
         // Ensure the user exists before we reference it.
         self.ensure_user(&mut db.conn, &c.base.base);
-        
+
         // Create a gallery of the images.
         let overview = utils::overview_of_pictures(&c.images)?;
         let all: Vec<Vec<u8>> = std::iter::once(overview)
@@ -101,11 +139,7 @@ impl DatabaseModule {
             db.conn
                 .execute(
                     "INSERT INTO images (batch_index, url, uuid) VALUES (?, ?, ?)",
-                    params![
-                        i,
-                        url,
-                        &c.uuid.to_string(),
-                    ],
+                    params![i, url, &c.uuid.to_string(),],
                 )
                 .expect("failed to insert image");
         }
@@ -121,7 +155,8 @@ impl DatabaseModule {
         let mut rows = stmt.query([uuid])?;
         if let Some(row) = rows.next()? {
             let settings: String = row.get(0).context("failed to get settings")?;
-            let settings: ParsedRequest = serde_json::from_str(&settings).context("failed to parse settings")?;
+            let settings: ParsedRequest =
+                serde_json::from_str(&settings).context("failed to parse settings")?;
             Ok(Some(settings))
         } else {
             Ok(None)
@@ -156,17 +191,26 @@ impl DatabaseModule {
     }
 
     /// Updates user stats to track the public/private generation ratio.
-    pub(crate) async fn update_user_stats(&self, parsed: &ParsedRequest, is_private: bool) -> Result<()> {
+    pub(crate) async fn update_user_stats(
+        &self,
+        parsed: &ParsedRequest,
+        is_private: bool,
+    ) -> Result<()> {
         let mut db = self.0.lock().await;
         let userid = self.ensure_user(&mut db.conn, &parsed.base);
-        let (total, private) = db.conn.query_row(
-            "SELECT total_batches, total_private_batches FROM user_stats WHERE user = ?",
-            [&userid],
-            |row| {
-                let total: u32 = row.get(0)?;
-                let private: u32 = row.get(1)?;
-                Ok((total, private))
-            }).optional().context("failed to get user stats")?
+        let (total, private) = db
+            .conn
+            .query_row(
+                "SELECT total_batches, total_private_batches FROM user_stats WHERE user = ?",
+                [&userid],
+                |row| {
+                    let total: u32 = row.get(0)?;
+                    let private: u32 = row.get(1)?;
+                    Ok((total, private))
+                },
+            )
+            .optional()
+            .context("failed to get user stats")?
             .unwrap_or((0, 0));
         let total = total + 1;
         let private = if is_private { private + 1 } else { private };
@@ -175,27 +219,39 @@ impl DatabaseModule {
             "INSERT OR REPLACE INTO user_stats (user, total_batches, total_private_batches) VALUES (?, ?, ?)",
             params![&userid, &total, &private],
         ).context("failed to update user stats")?;
-        
+
         Ok(())
     }
 
     /// Makes sure at least 1/3 of the user's requests are public.
-    pub(crate) async fn check_privacy_limit(&self, parsed: &ParsedRequest, is_private: bool) -> Result<()> {
+    pub(crate) async fn check_privacy_limit(
+        &self,
+        parsed: &ParsedRequest,
+        is_private: bool,
+    ) -> Result<()> {
         if !is_private {
             return Ok(());
         }
-        let userid = self.user_id(&parsed.base); 
+        let userid = self.user_id(&parsed.base);
         let db = self.0.lock().await;
-        let (total, private) = db.conn.query_row(
-            "SELECT total_batches, total_private_batches FROM user_stats WHERE user = ?",
-            [&userid],
-            |row| {
-                let total: u32 = row.get(0)?;
-                let private: u32 = row.get(1)?;
-                Ok((total, private))
-            }).optional().context("failed to get user stats")?
+        let (total, private) = db
+            .conn
+            .query_row(
+                "SELECT total_batches, total_private_batches FROM user_stats WHERE user = ?",
+                [&userid],
+                |row| {
+                    let total: u32 = row.get(0)?;
+                    let private: u32 = row.get(1)?;
+                    Ok((total, private))
+                },
+            )
+            .optional()
+            .context("failed to get user stats")?
             .unwrap_or((0, 0));
-        info!("User {} has {} total batches, {} private batches", userid, total, private);
+        info!(
+            "User {} has {} total batches, {} private batches",
+            userid, total, private
+        );
         if total < 4 {
             return Ok(());
         }
@@ -205,5 +261,4 @@ impl DatabaseModule {
             Ok(())
         }
     }
-
 }

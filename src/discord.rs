@@ -184,6 +184,9 @@ impl Handler {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> Result<()> {
+        // Check if we're paused.
+        self.context.db.error_if_paused().await?;
+
         let cprefix = self
             .context
             .config

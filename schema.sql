@@ -51,3 +51,7 @@ CREATE TABLE IF NOT EXISTS Votes (
 );
 
 CREATE INDEX IF NOT EXISTS Votes_user ON Votes(user);
+
+CREATE TABLE IF NOT EXISTS BotPaused (
+  reason TEXT
+);

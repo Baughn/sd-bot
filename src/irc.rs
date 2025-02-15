@@ -180,9 +180,24 @@ impl IrcTask {
         cmd: &str,
         params: &str,
     ) -> Result<()> {
+        let owner = context.config.with_config(|c| c.owner.clone()).await;
         let requests = match cmd {
+            "pause" => {
+                if nick != owner {
+                    return send(sender, target, "You are not my owner.").await;
+                }
+                context.db.set_paused(Some(params)).await?;
+                return send(sender, target, "Paused.").await;
+            }
+            "unpause" => {
+                if nick != owner {
+                    return send(sender, target, "You are not my owner.").await;
+                }
+                context.db.set_paused(None).await?;
+                return send(sender, target, "Unpaused.").await;
+            }
             "restart" => {
-                if nick == "Baughn" {
+                if nick == owner {
                     // First, wait until the generator is idle.
                     context.image_generator.wait_until_idle().await;
                     send(sender, target, "Restarting...").await?;
@@ -233,8 +248,8 @@ impl IrcTask {
                 requests
             }
             "smoketest" => {
-                if nick != "Baughn" {
-                    send(sender, target, "You're not the admin.").await?;
+                if nick != owner {
+                    send(sender, target, "You're not my owner.").await?;
                     return Ok(());
                 } else {
                     let test_prompt = "A cute girl wearing a flower in her hair";
@@ -325,7 +340,11 @@ impl IrcTask {
             }
             _ => return Ok(()),
         };
+
         // Only picture generation below here. Other commands return early.
+        // Check if we're paused.
+        context.db.error_if_paused().await?;
+
         // Before we do anything else, send a new changelog entry! If there is one.
         let userid = format!("irc:{nick}");
         if let Some(entry) = crate::changelog::get_new_changelog_entry(context, &userid).await? {
