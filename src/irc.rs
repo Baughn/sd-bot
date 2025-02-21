@@ -25,7 +25,23 @@ impl IrcTask {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        self.run_inner().await
+        let mut last_retry = std::time::Instant::now();
+        loop {
+            // This shouldn't really happen.
+            match self.run_inner().await {
+                Result::Ok(_) => return Ok(()),
+                Result::Err(e) => {
+                    error!("Error in IRC client: {:#}", e);
+                    // Exit if this happens twice in one minute.
+                    if last_retry.elapsed() < Duration::from_secs(60) {
+                        bail!("Too many errors, exiting");
+                    }
+                    // Wait a bit before retrying.
+                    tokio::time::sleep(Duration::from_secs(4)).await;
+                    last_retry = std::time::Instant::now();
+                }
+            }
+        }
     }
 
     async fn run_inner(&mut self) -> Result<()> {
