@@ -358,8 +358,10 @@ impl IrcTask {
         };
 
         // Only picture generation below here. Other commands return early.
-        // Check if we're paused.
-        context.db.error_if_paused().await?;
+        if nick != owner {
+            // Check if we're paused.
+            context.db.error_if_paused().await?;
+        }
 
         // Before we do anything else, send a new changelog entry! If there is one.
         let userid = format!("irc:{nick}");

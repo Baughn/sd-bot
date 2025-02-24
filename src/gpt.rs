@@ -149,27 +149,34 @@ async fn do_claude<T: DeserializeOwned + Clone>(
     let url = "https://api.anthropic.com/v1/messages";
     let req = if let Some(schema) = schema {
         json!({
-            "model": "claude-3-5-sonnet-20241022",
+            "model": "claude-3-7-sonnet-20250219",
             "max_tokens": 4096,
             "tools": [schema],
-            "tool_choice": {"type": "tool", "name": schema["name"]},
             "system": [
                 {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
             ],
             "messages": [
                 {"role": "user", "content": user},
-            ]
+            ],
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 2048
+            }
         })
     } else {
         json!({
-            "model": "claude-3-5-sonnet-20240620",
+            "model": "claude-3-7-sonnet-20250219",
             "max_tokens": 4096,
             "system": [
                 {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}
             ],
             "messages": [
                 {"role": "user", "content": user},
-            ]
+            ],
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 2048
+            }
         })
     };
     let resp = client
@@ -221,18 +228,23 @@ async fn do_claude<T: DeserializeOwned + Clone>(
             body.usage.cache_creation_input_tokens,
             body.usage.cache_read_input_tokens
         );
+
         if schema.is_some() {
-            if let Some(input) = &body.content[0].input {
-                Ok(ClaudeResult::Schema(input.clone()))
-            } else {
-                bail!("Claude response was empty");
+            // Go looking for the tool usage.
+            for content in &body.content {
+                if let Some(input) = &content.input {
+                    return Ok(ClaudeResult::Schema(input.clone()));
+                }
             }
-        } else {
-            let text = &body.content[0].text.as_ref();
-            Ok(ClaudeResult::NoSchema(
-                text.context("Claude response was empty")?.clone(),
-            ))
         }
+        // Okay, go looking for text.
+        for content in &body.content {
+            if let Some(text) = &content.text {
+                return Ok(ClaudeResult::NoSchema(text.clone()));
+            }
+        }
+        // Uh oh.
+        bail!("Claude returned no usable response");
     } else {
         let body: APIError = resp.json().await?;
         bail!("Claude error: {}", body.error.message);
@@ -290,13 +302,13 @@ impl PromptGeneratorModule {
         // Define the 'tool' schema.
         let schema = json!({
             "name": "record_prompt_completion",
-            "description": "Record the prompt completion and comment using well-formed JSON.",
+            "description": "Generate an image",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "comment": {
                         "type": "string",
-                        "description": "The comment on the users's request."
+                        "description": "Your thoughts"
                     },
                     "prompt": {
                         "type": "string",
@@ -307,7 +319,7 @@ impl PromptGeneratorModule {
                         "description": "The aspect ratio of the image."
                     }
                 },
-                "required": ["comment", "aspect_ratio", "prompt"]
+                "required": ["aspect_ratio", "prompt"]
             },
         });
 

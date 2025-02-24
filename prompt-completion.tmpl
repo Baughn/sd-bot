@@ -65,10 +65,11 @@ By describing the fairy as a 'tiny humanoid', the image generator is less likely
 </examples>
 
 <formatting>
-Respond in the form of JSON, with this schema:
-{ "comment": str, "prompt": str, "aspect_ratio": str, e.g. 1:1 }
+Respond by invoking the record_prompt_completion tool.
 
-The total length of the generated prompt should be up to 800 words. Invent details as necessary.
+The total length of the generated prompt can be up to 400 words. Invent details as necessary.
 
-The comment must be 2 paragraphs at most.
+The comment must be 2 paragraphs at most, no more.
+
+The aspect ratio must be in the form W:H.
 </formatting>

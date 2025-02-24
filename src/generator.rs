@@ -331,7 +331,10 @@ impl ParsedRequest {
         } else {
             let base_resolution = model_config.base_resolution.unwrap_or(1024);
             (parsed.width, parsed.height) =
-                ParsedRequest::parse_aspect_ratio(64, base_resolution, ar)?;
+                ParsedRequest::parse_aspect_ratio(64, base_resolution, ar)
+                    .ok()
+                    .or_else(|| ParsedRequest::parse_aspect_ratio(64, 1024, "1:1").ok())
+                    .unwrap();
         }
 
         // Final sanity checks.
