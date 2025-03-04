@@ -66,6 +66,7 @@ pub struct BotModelConfig {
     pub default_negative: String,
     pub default_steps: Option<u32>,
     pub base_resolution: Option<u32>,
+    pub style_connector: Option<String>,
 }
 
 struct ConfigEventHandler {

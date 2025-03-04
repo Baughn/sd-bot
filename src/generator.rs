@@ -449,7 +449,8 @@ impl ParsedRequest {
             linguistic_prompt.clone()
         } else {
             let supporting_prompt = &self.supporting_prompt;
-            format!("{linguistic_prompt}. The overall style is {supporting_prompt}")
+            let style_connector = model_config.style_connector.as_deref().unwrap_or(": ");
+            format!("{linguistic_prompt}. {style_connector}{supporting_prompt}")
         };
 
         let workflow = workflow
@@ -475,6 +476,7 @@ impl ParsedRequest {
             .replace("__PROMPT_B__", &json_encode_string(&self.supporting_prompt))
             .replace("__COMBINED_PROMPT__", &json_encode_string(&combined_prompt))
             .replace("__STEPS_TOTAL__", &steps.to_string())
+            .replace("__STEPS_HALF__", &(steps / 2).to_string())
             .replace("__FIRST_PASS_END_AT_STEP__", &steps_cutover.to_string())
             .replace("__WIDTH__", &self.width.to_string())
             .replace("__HEIGHT__", &self.height.to_string())

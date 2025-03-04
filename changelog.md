@@ -16,7 +16,7 @@
 ## Models
 
 - Flux-realistic model swapped out for Jibmix. This is now the default for !prompt and !dream.
-- Swapped the fanart default to `-m ntrmix`. It's pretty much like PASanctuary, but a little better at action scenes.
+- Swapped out `-m fanart` for NTRMix version XIII. The previous model is available as `-m ntrmix-40`.
 - Added `--no bored, simple background, monochrome` to the default prompt for fanart-cute, but you can do this with anything~
 - Added fanart-cute (`-m fanart-cute`, aka. `-m monody`) as an alternative to `fanart`. This does what it says on the tin.
 - Added PASanctuary SDXL as `-m pasanctuary` and `-m fanart`. This model is useful for all your anime fanart purposes. Prompt with tags.

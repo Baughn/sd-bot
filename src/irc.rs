@@ -321,7 +321,7 @@ impl IrcTask {
                     return Ok(());
                 }
                 let text = claude_simple(
-                    "You are a Snarkasaurus Rex. Don't summarize, but answer the question accurately and completely.  Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
+                    "Respond in the style of Film Noir. Don't summarize, but answer the question accurately and completely. Lastly, be more creative and a better wordsmith than usual! I know you can do it!",
                     params).await?;
                 send(sender, target, &text).await?;
                 return Ok(());

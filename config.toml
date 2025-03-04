@@ -28,6 +28,7 @@ channels = ["#questionablebotting", "#questionablequesting"]
 [aliases]
 default = "flux-realistic"
 "dream" = "flux-realistic"
+"flux" = "flux-realistic"
 "fanart" = "ntrmix"
 "fanart-cute" = "monody"
 "fanart-realistic" = "realism-illustrious"
@@ -44,6 +45,7 @@ description = "Sana 2k model. Experiment. Use english; don't expect photorealism
 workflow = "workflow-sana.json.tmpl"
 default_positive = ""
 default_negative = "photo, depth of field"
+style_connector = "Overall style: "
 
 [models."realism-illustrious"]
 baseline = "xl-ill/realismIllustriousBy_v13FP16.safetensors"
@@ -67,13 +69,20 @@ default_positive = " embedding:Stable_Yogis_Illustrious_Positives.safetensors ci
 default_negative = "embedding:Stable_Yogis_Illustrious_Negatives-neg.safetensors"
 
 [models.ntrmix]
+baseline = "xl-ill/ntrMIXIllustriousXL_xiii.safetensors"
+description = "NTRMix XIII. Illustrious-based; for fanart. Use tags."
+workflow = "workflow-sdxl-ntrmix.json.tmpl"
+default_positive = "masterpiece, best quality, amazing quality, very aesthetic, absurdres,  newest, volumetric lighting"
+default_negative = "shiny skin, bored, simple background, worst quality, old, early, low quality, lowres, bad hands, mutated hands, censored, monochrome"
+default_steps = 60
+
+[models.ntrmix-40]
 baseline = "xl-ill/ntrMIXIllustriousXL_v40.safetensors"
-description = "NTRMix. Illustrious-based; for fanart. Use tags."
+description = "NTRMix v4.0. Illustrious-based; for fanart. Use tags."
 workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality, newest, absurdres, highres"
 default_negative = "bored, simple background, worst quality, old, early, low quality, lowres, bad hands, mutated hands, censored, monochrome"
 default_steps = 60
-base_resolution = 1280
 
 [models.monody]
 baseline = "xl-ill/monodyIllustrious_a1.safetensors"
@@ -82,7 +91,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece (quality), best quality, good quality, newest"
 default_negative = "bored, greyscale, simple background, worst quality, bad quality, low quality, lowres, jpeg artifacts, bad anatomy, bad hands, multiple views, signature, watermark, censored, greyscale, monochrome,"
 default_steps = 60
-base_resolution = 1280
 
 [models."pasanctuary-1.0"]
 baseline = "xl-ill/pasanctuarySDXL_v10.safetensors"
@@ -91,7 +99,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality, good quality, newest, absurdres, highres"
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
 default_steps = 60
-base_resolution = 1280
 
 [models."pasanctuary-2.0"]
 baseline = "xl-ill/pasanctuarySDXL_v20.safetensors"
@@ -100,7 +107,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality"
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
 default_steps = 60
-base_resolution = 1280
 
 [models."pasanctuary-3.0"]
 baseline = "xl-ill/pasanctuarySDXL_v30.safetensors"
@@ -109,7 +115,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality, good quality, newest, absurdres, highres"
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
 default_steps = 60
-base_resolution = 1280
 
 [models."pasanctuary-4.0"]
 baseline = "xl-ill/pasanctuarySDXL_v40.safetensors"
@@ -118,7 +123,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality, good quality, newest, absurdres, highres"
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
 default_steps = 60
-base_resolution = 1280
 
 [models."pasanctuary-5.0"]
 baseline = "xl-ill/pasanctuarySDXL_v50.safetensors"
@@ -127,7 +131,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = "masterpiece, best quality, newest, absurdres, highres"
 default_negative = "worst quality, old, early, low quality, lowres, bad hands, mutated hands, greyscale, (nsfw, see-through:0.7)"
 default_steps = 60
-base_resolution = 1280
 
 [models.illustriousxl]
 baseline = "xl-ill/Illustrious-XL-v1.0.safetensors"
@@ -136,7 +139,6 @@ workflow = "workflow-sdxl-illustrious.json.tmpl"
 default_positive = ""
 default_negative = "3d, bored, simple background, worst quality, old, early, low quality, lowres, bad hands, mutated hands, censored, monochrome"
 default_steps = 60
-base_resolution = 1408
 
 [models.nai]
 baseline = "N/A"
@@ -151,6 +153,7 @@ description = "SD 3.5-Large. Unexpectedly good. Use highly descriptive english."
 workflow = "workflow-sd35.json.tmpl"
 default_positive = ""
 default_negative = ""
+style_connector = "Overall style: "
 
 [models.flux-realistic]
 baseline = "flux/jibMixFlux_v72PixelHeaven.safetensors"
@@ -158,6 +161,7 @@ description = "Flux jibmix. Use highly descriptive english."
 workflow = "workflow-flux-checkpoint.json.tmpl"
 default_positive = ""
 default_negative = ""
+style_connector = "Overall style: "
 
 [models.pixelwave]
 baseline = "pixelwave_flux1Dev03.safetensors"
@@ -165,13 +169,15 @@ description = "Pixelwave. Like Flux, but with slightly less plastic. Use highly 
 workflow = "workflow-flux-unet.json.tmpl"
 default_positive = ""
 default_negative = ""
+style_connector = "Overall style: "
 
-[models.flux]
+[models.flux-baseline]
 baseline = "flux1-dev-Q8_0.gguf"
 description = "Flux-dev-1. Use highly descriptive english."
 workflow = "workflow-flux.json.tmpl"
 default_positive = ""
 default_negative = ""
+style_connector = "Overall style: "
 
 [models.flux-anime]
 baseline = "flux1-dev-Q8_0.gguf"
@@ -179,6 +185,7 @@ description = "Flux-dev-1. Use highly descriptive english."
 workflow = "workflow-flux.json.tmpl"
 default_positive = "Anime masterpiece."
 default_negative = ""
+style_connector = "Overall style: "
 
 [models.auraflow]
 baseline = "auraflow/aura_flow_0.1.safetensors"
@@ -186,6 +193,7 @@ description = "AuraFlow 0.1. Use English and superlatives."
 workflow = "workflow-auraflow.json.tmpl"
 default_positive = "realistic textures, ultra-high definition, very dark background, photorealistic, highly detailed, natural lighting, sharp focus, hyperrealism"
 default_negative = ""
+style_connector = "Overall style: "
 
 [models.helloworld]
 baseline = "xl/HelloWorld_7.0.safetensors"
@@ -200,6 +208,7 @@ description = "Stable Diffusion 3, medium baseline. Use english!"
 workflow = "workflow-sd3.json.tmpl"
 default_positive = ""
 default_negative = "pornhub, boobs, stepsister, vagina, clit, penis, dick, cock, bdsm, bad quality, poor quality, disfigured, jpg, toy, bad anatomy, missing limbs, missing fingers, 3d, cgi"
+style_connector = "Overall style: "
 
 [models.zavyfantasiaxl]
 baseline = "xl/zavyfantasiaxlPDXL_v10.safetensors"
@@ -428,6 +437,7 @@ baseline = "xl/sd_xl_base_1.0.safetensors"
 refiner = "xl/sd_xl_refiner_1.0.safetensors"
 default_positive = ""
 default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast"
+style_connector = "Overall style: "
 
 [models."sdxl_0.9"]
 description = "The v0.9 research preview of SDXL. This model is incredibly flexible."
@@ -436,6 +446,7 @@ baseline = "xl/sd_xl_base_0.9.safetensors"
 refiner = "xl/sd_xl_refiner_0.9.safetensors"
 default_positive = ""
 default_negative = "deformed, unrealistic, bad quality, grainy, noisy, plastic, hazy, low contrast"
+style_connector = "Overall style: "
 
 [models."AstreaPixie"]
 description = "AstreaPixie Radiance v1.6"
